@@ -28,7 +28,8 @@ export default function DashboardPage() {
     approvedPlayers: 0,
     pendingEngagements: 0,
     approvedEngagements: 0,
-    totalMedia: 0
+    totalMedia: 0,
+    totalEngagements: 0
   })
   const router = useRouter()
   const supabase = createClient()
@@ -131,6 +132,7 @@ export default function DashboardPage() {
       pendingEngagements: engagements?.filter(e => e.status === 'pending').length || 0,
       approvedEngagements: engagements?.filter(e => e.status === 'approved').length || 0,
       totalMedia: totalMedia || 0,
+      totalEngagements: engagements?.length || 0
     })
   }
 
@@ -162,7 +164,7 @@ export default function DashboardPage() {
     
     if (count) setShortlistCount(count)
 
-    // Simulate profile views (could be tracked in a real table)
+    // Simulate profile views
     setProfileViews(Math.floor(Math.random() * 50) + 10)
   }
 
@@ -399,10 +401,7 @@ export default function DashboardPage() {
 
         {/* Quick Actions Row */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-          <Link
-            href="/dashboard/profile"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group"
-          >
+          <Link href="/dashboard/profile" className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group">
             <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center group-hover:bg-red-600 transition">
               <UserCircle className="w-5 h-5 text-red-600 group-hover:text-white" />
             </div>
@@ -412,10 +411,7 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link
-            href="/dashboard/profile?tab=media"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group"
-          >
+          <Link href="/dashboard/profile?tab=media" className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group">
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-600 transition">
               <Upload className="w-5 h-5 text-blue-600 group-hover:text-white" />
             </div>
@@ -425,10 +421,7 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link
-            href="/dashboard/notifications"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group"
-          >
+          <Link href="/dashboard/notifications" className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group">
             <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center group-hover:bg-yellow-600 transition">
               <Bell className="w-5 h-5 text-yellow-600 group-hover:text-white" />
             </div>
@@ -438,10 +431,7 @@ export default function DashboardPage() {
             </div>
           </Link>
 
-          <Link
-            href="/dashboard/players"
-            className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group"
-          >
+          <Link href="/dashboard/players" className="flex items-center gap-3 p-4 bg-white rounded-xl shadow hover:shadow-lg transition group">
             <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-600 transition">
               <Users className="w-5 h-5 text-green-600 group-hover:text-white" />
             </div>
@@ -456,7 +446,6 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Profile Overview */}
           <div className="space-y-8">
-            {/* Profile Status */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-red-600">Profile Overview</h2>
               <div className="space-y-4">
@@ -501,7 +490,6 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Statistics */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-semibold mb-4 text-blue-600">Performance Statistics</h2>
               <div className="grid grid-cols-3 gap-4 text-center">
@@ -518,15 +506,11 @@ export default function DashboardPage() {
                   <p className="text-gray-500 text-sm">Assists</p>
                 </div>
               </div>
-              <button className="mt-4 w-full text-center text-sm text-blue-600 hover:underline">
-                Update Statistics →
-              </button>
             </div>
           </div>
 
           {/* Right Column - Engagement & Media */}
           <div className="space-y-8">
-            {/* Engagement Requests */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Activity className="w-5 h-5 text-green-600" />
@@ -576,7 +560,6 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Recent Media */}
             <div className="bg-white rounded-xl shadow p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
                 <Video className="w-5 h-5 text-purple-600" />
@@ -586,10 +569,7 @@ export default function DashboardPage() {
                 <div className="text-center py-8">
                   <Video className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No media uploaded yet</p>
-                  <Link
-                    href="/dashboard/profile"
-                    className="inline-block mt-2 text-red-600 text-sm hover:underline"
-                  >
+                  <Link href="/dashboard/profile" className="inline-block mt-2 text-red-600 text-sm hover:underline">
                     Upload your first highlight →
                   </Link>
                 </div>
@@ -598,16 +578,9 @@ export default function DashboardPage() {
                   {recentMedia.map((item) => (
                     <div key={item.id} className="relative group">
                       {item.type === 'video' ? (
-                        <video
-                          src={item.url}
-                          className="w-full h-24 object-cover rounded-lg"
-                        />
+                        <video src={item.url} className="w-full h-24 object-cover rounded-lg" />
                       ) : (
-                        <img
-                          src={item.url}
-                          alt="Highlight"
-                          className="w-full h-24 object-cover rounded-lg"
-                        />
+                        <img src={item.url} alt="Highlight" className="w-full h-24 object-cover rounded-lg" />
                       )}
                       <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                         <Eye className="w-5 h-5 text-white" />
@@ -616,17 +589,8 @@ export default function DashboardPage() {
                   ))}
                 </div>
               )}
-              {recentMedia.length > 0 && (
-                <Link
-                  href="/dashboard/profile?tab=media"
-                  className="mt-4 block text-center text-sm text-purple-600 hover:underline"
-                >
-                  View All Media →
-                </Link>
-              )}
             </div>
 
-            {/* Tips Card */}
             <div className="bg-gradient-to-r from-red-50 to-blue-50 rounded-xl shadow p-6">
               <h3 className="font-semibold text-gray-900 mb-2">💡 Pro Tips</h3>
               <ul className="space-y-2 text-sm text-gray-600">
@@ -637,10 +601,6 @@ export default function DashboardPage() {
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
                   Upload highlight videos to showcase your skills
-                </li>
-                <li className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  Update your stats regularly to stay relevant
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -658,7 +618,6 @@ export default function DashboardPage() {
   if (userRole === 'agent') {
     return (
       <div>
-        {/* Welcome Header */}
         <div className="bg-gradient-to-r from-red-600 via-black to-blue-600 rounded-xl shadow-lg p-6 text-white mb-8">
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center">
@@ -674,7 +633,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow p-4 border-l-4 border-red-500">
             <div className="flex items-center justify-between">
@@ -705,7 +663,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Link href="/dashboard/scouting" className="block bg-white rounded-xl shadow p-6 hover:shadow-lg transition border-l-4 border-red-500">
             <Search className="w-12 h-12 text-red-600 mb-4" />
@@ -738,33 +695,6 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Shortlist Preview */}
-        {recentActivity.length > 0 && (
-          <div className="bg-white rounded-xl shadow p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Star className="w-5 h-5 text-yellow-500" />
-              Recently Shortlisted
-            </h2>
-            <div className="space-y-3">
-              {recentActivity.slice(0, 3).map((item) => (
-                <div key={item.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-semibold text-gray-900">{item.players?.name}</p>
-                    <p className="text-sm text-gray-500">{item.players?.position} • Age {item.players?.age}</p>
-                  </div>
-                  <Link
-                    href={`/dashboard/players/${item.player_id}`}
-                    className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700"
-                  >
-                    View Profile
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Tips Card */}
         <div className="mt-8 bg-gradient-to-r from-red-50 to-blue-50 rounded-xl shadow p-6">
           <h3 className="font-semibold text-gray-900 mb-2">💡 Scout Tips</h3>
           <ul className="space-y-2 text-sm text-gray-600">
@@ -779,10 +709,6 @@ export default function DashboardPage() {
             <li className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-500" />
               Shortlist promising players for future reference
-            </li>
-            <li className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-green-500" />
-              Request engagement to start a conversation
             </li>
           </ul>
         </div>
