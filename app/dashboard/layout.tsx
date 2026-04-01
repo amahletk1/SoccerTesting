@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3 
+  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3, MessageSquare
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -157,6 +157,28 @@ export default function DashboardLayout({
             Dashboard
           </Link>
 
+          <Link 
+            href="/dashboard/notifications" 
+            className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+          >
+            <Bell className="w-5 h-5 mr-3" />
+            Notifications
+            {notificationCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {notificationCount}
+              </span>
+            )}
+          </Link>
+
+          {/* MESSAGES LINK - ADDED HERE */}
+          <Link 
+            href="/dashboard/messages" 
+            className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+          >
+            <MessageSquare className="w-5 h-5 mr-3" />
+            Messages
+          </Link>
+
           {userRole === 'admin' && (
             <>
               <Link 
@@ -175,19 +197,6 @@ export default function DashboardLayout({
               </Link>
             </>
           )}
-
-          <Link 
-            href="/dashboard/notifications" 
-            className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-          >
-            <Bell className="w-5 h-5 mr-3" />
-            Notifications
-            {notificationCount > 0 && (
-              <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                {notificationCount}
-              </span>
-            )}
-          </Link>
           
           {userRole === 'agent' && (
             <>
