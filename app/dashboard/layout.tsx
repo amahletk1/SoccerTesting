@@ -149,6 +149,7 @@ export default function DashboardLayout({
         </div>
 
         <nav className="mt-4">
+          {/* Dashboard - Common for all */}
           <Link 
             href="/dashboard" 
             className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
@@ -157,6 +158,7 @@ export default function DashboardLayout({
             Dashboard
           </Link>
 
+          {/* Notifications - Common for all */}
           <Link 
             href="/dashboard/notifications" 
             className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
@@ -170,15 +172,18 @@ export default function DashboardLayout({
             )}
           </Link>
 
-          {/* MESSAGES LINK - ADDED HERE */}
-          <Link 
-            href="/dashboard/messages" 
-            className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-          >
-            <MessageSquare className="w-5 h-5 mr-3" />
-            Messages
-          </Link>
+          {/* Messages - Only for Agents and Players */}
+          {(userRole === 'agent' || userRole === 'player') && (
+            <Link 
+              href="/dashboard/messages" 
+              className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+            >
+              <MessageSquare className="w-5 h-5 mr-3" />
+              Messages
+            </Link>
+          )}
 
+          {/* Admin Links */}
           {userRole === 'admin' && (
             <>
               <Link 
@@ -198,6 +203,7 @@ export default function DashboardLayout({
             </>
           )}
           
+          {/* Agent Links */}
           {userRole === 'agent' && (
             <>
               <Link 
@@ -224,6 +230,7 @@ export default function DashboardLayout({
             </>
           )}
 
+          {/* Player Links */}
           {userRole === 'player' && (
             <Link 
               href="/dashboard/profile" 
