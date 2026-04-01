@@ -8,8 +8,9 @@ import {
   Users, UserCheck, TrendingUp, Calendar, Activity, 
   Star, Eye, Award, Bell, ArrowRight, BarChart3, 
   ShieldCheck, UserCircle, Video, Image, Target, CheckCircle,
-  XCircle, MessageSquare, Upload, Clock, Search
+  XCircle, MessageSquare, Upload, Clock, Search, Edit3
 } from 'lucide-react'
+import StatsEditor from '@/app/components/StatsEditor'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<any>(null)
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const [recentMedia, setRecentMedia] = useState<any[]>([])
   const [profileViews, setProfileViews] = useState(0)
   const [shortlistCount, setShortlistCount] = useState(0)
+  const [showStatsEditor, setShowStatsEditor] = useState(false)
   const [stats, setStats] = useState({
     totalPlayers: 0,
     totalAgents: 0,
@@ -186,6 +188,18 @@ export default function DashboardPage() {
     if (engagements) setEngagementRequests(engagements)
   }
 
+  const refreshPlayerData = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data: player } = await supabase
+        .from('players')
+        .select('*, player_stats(*)')
+        .eq('user_id', user.id)
+        .single()
+      if (player) setProfile(player)
+    }
+  }
+
   const handleAcceptEngagement = async (engagementId: string) => {
     const { error } = await supabase
       .from('engagements')
@@ -224,7 +238,6 @@ export default function DashboardPage() {
 
   // ========== ADMIN DASHBOARD ==========
   if (userRole === 'admin') {
-    const totalEngagements = stats.pendingEngagements + stats.approvedEngagements
     const approvalRate = stats.totalPlayers > 0 
       ? Math.round((stats.approvedPlayers / stats.totalPlayers) * 100) 
       : 0
@@ -262,7 +275,7 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-gray-500 text-sm">Engagements</p>
-                <p className="text-2xl font-bold text-green-600">{totalEngagements}</p>
+                <p className="text-2xl font-bold text-green-600">{stats.pendingEngagements + stats.approvedEngagements}</p>
                 <p className="text-xs text-gray-400 mt-1">{stats.pendingEngagements} pending</p>
               </div>
               <Activity className="w-8 h-8 text-green-200" />
@@ -330,6 +343,15 @@ export default function DashboardPage() {
 
   // ========== PLAYER DASHBOARD ==========
   if (userRole === 'player') {
+    const currentStats = {
+      matches_played: profile?.player_stats?.[0]?.matches_played || 0,
+      goals: profile?.player_stats?.[0]?.goals || 0,
+      assists: profile?.player_stats?.[0]?.assists || 0,
+      clean_sheets: profile?.player_stats?.[0]?.clean_sheets || 0,
+      yellow_cards: profile?.player_stats?.[0]?.yellow_cards || 0,
+      red_cards: profile?.player_stats?.[0]?.red_cards || 0
+    }
+
     return (
       <div>
         {/* Welcome Header with Profile Picture */}
@@ -502,26 +524,62 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Statistics */}
+            {/* Performance Statistics with Editor */}
             <div className="bg-white rounded-xl shadow p-6">
-              <h2 className="text-xl font-semibold mb-4 text-blue-600">Performance Statistics</h2>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="bg-gradient-to-br from-red-50 to-white rounded-lg p-4">
-                  <p className="text-2xl font-bold text-red-600">{profile?.player_stats?.[0]?.matches_played || 0}</p>
-                  <p className="text-gray-500 text-sm">Matches</p>
-                </div>
-                <div className="bg-gradient-to-br from-black/5 to-white rounded-lg p-4">
-                  <p className="text-2xl font-bold text-black">{profile?.player_stats?.[0]?.goals || 0}</p>
-                  <p className="text-gray-500 text-sm">Goals</p>
-                </div>
-                <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg p-4">
-                  <p className="text-2xl font-bold text-blue-600">{profile?.player_stats?.[0]?.assists || 0}</p>
-                  <p className="text-gray-500 text-sm">Assists</p>
-                </div>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-blue-600">Performance Statistics</h2>
+                <button
+                  onClick={() => setShowStatsEditor(!showStatsEditor)}
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  {showStatsEditor ? 'Hide Editor' : 'Edit Stats'}
+                </button>
               </div>
-              <button className="mt-4 w-full text-center text-sm text-blue-600 hover:underline">
-                Update Statistics →
-              </button>
+
+              {showStatsEditor ? (
+                <StatsEditor
+                  playerId={profile.id}
+                  currentStats={currentStats}
+                  onUpdate={refreshPlayerData}
+                   onClose={() => setShowStatsEditor(false)}  // Add this line
+                />
+              ) : (
+                <>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div className="bg-gradient-to-br from-red-50 to-white rounded-lg p-4">
+                      <p className="text-2xl font-bold text-red-600">{currentStats.matches_played}</p>
+                      <p className="text-gray-500 text-sm">Matches</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-black/5 to-white rounded-lg p-4">
+                      <p className="text-2xl font-bold text-black">{currentStats.goals}</p>
+                      <p className="text-gray-500 text-sm">Goals</p>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-50 to-white rounded-lg p-4">
+                      <p className="text-2xl font-bold text-blue-600">{currentStats.assists}</p>
+                      <p className="text-gray-500 text-sm">Assists</p>
+                    </div>
+                  </div>
+                  
+                  {/* Advanced Stats */}
+                  <div className="mt-4 pt-4 border-t">
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-sm text-gray-500">Clean Sheets</p>
+                        <p className="text-lg font-semibold text-gray-700">{currentStats.clean_sheets}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Yellow Cards</p>
+                        <p className="text-lg font-semibold text-gray-700">{currentStats.yellow_cards}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Red Cards</p>
+                        <p className="text-lg font-semibold text-gray-700">{currentStats.red_cards}</p>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -588,7 +646,7 @@ export default function DashboardPage() {
                   <Video className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No media uploaded yet</p>
                   <Link
-                    href="/dashboard/profile"
+                    href="/dashboard/profile?tab=media"
                     className="inline-block mt-2 text-red-600 text-sm hover:underline"
                   >
                     Upload your first highlight →
@@ -633,7 +691,7 @@ export default function DashboardPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  Complete your profile to attract more agents
+                  Update your stats regularly to attract more agents
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -641,11 +699,11 @@ export default function DashboardPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  Update your stats regularly to stay relevant
+                  Respond quickly to engagement requests
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  Respond quickly to engagement requests
+                  Complete your profile to stand out
                 </li>
               </ul>
             </div>

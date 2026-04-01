@@ -1,25 +1,36 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, CheckCircle, AlertCircle } from 'lucide-react'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [message, setMessage] = useState('')
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+
+  useEffect(() => {
+    // Check if user was redirected after email confirmation
+    const confirmed = searchParams.get('confirmed')
+    if (confirmed === 'true') {
+      setMessage('Email confirmed! Please log in to complete your profile.')
+    }
+  }, [searchParams])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setMessage('')
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -27,7 +38,27 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
     } else {
-      router.push('/dashboard')
+      // Check if user has a profile
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: player } = await supabase
+          .from('players')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        
+        const { data: agent } = await supabase
+          .from('agents')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (!player && !agent) {
+          router.push('/complete-profile')
+        } else {
+          router.push('/dashboard')
+        }
+      }
     }
     setLoading(false)
   }
@@ -52,8 +83,16 @@ export default function LoginPage() {
           <p className="text-gray-600 mt-2">Sign in to your account</p>
         </div>
 
+        {message && (
+          <div className="bg-green-100 text-green-700 p-3 rounded-lg mb-4 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            {message}
+          </div>
+        )}
+
         {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
+          <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4 flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
             {error}
           </div>
         )}
