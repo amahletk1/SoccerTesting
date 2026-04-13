@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { Shield, Trophy, Users, ArrowRight, UserPlus, Briefcase } from 'lucide-react'
+import { Shield, Trophy, Users, ArrowRight, UserPlus, Briefcase, Target } from 'lucide-react'
 
 export default function LandingPage() {
   return (
@@ -38,7 +38,7 @@ export default function LandingPage() {
           </h1>
           
           <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-12">
-            Connect with verified agents and sporting directors. Showcase your talent to the world's top scouts.
+            Connect with verified agents, scouts, and sporting directors. Showcase your talent to the world's top talent finders.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -57,6 +57,13 @@ export default function LandingPage() {
               <Briefcase className="mr-2 w-5 h-5" />
               Join as Agent
             </Link>
+            <Link
+              href="/signup?role=scout"
+              className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+            >
+              <Target className="mr-2 w-5 h-5" />
+              Join as Scout
+            </Link>
           </div>
 
           {/* Features */}
@@ -66,7 +73,7 @@ export default function LandingPage() {
                 <Shield className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Verified Scouts</h3>
-              <p className="text-gray-600">All agents and players are thoroughly vetted</p>
+              <p className="text-gray-600">All agents, scouts, and players are thoroughly vetted</p>
             </div>
             
             <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-t-4 border-black">
@@ -82,7 +89,7 @@ export default function LandingPage() {
                 <Users className="w-7 h-7 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">Exclusive Access</h3>
-              <p className="text-gray-600">Direct engagement between agents and players</p>
+              <p className="text-gray-600">Direct engagement between talent finders and players</p>
             </div>
           </div>
 

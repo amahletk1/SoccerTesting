@@ -11,14 +11,14 @@ function SignupForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [role, setRole] = useState<'player' | 'agent'>('player')
+  const [role, setRole] = useState<'player' | 'agent' | 'scout'>('player')
   const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
 
   useEffect(() => {
     const roleParam = searchParams.get('role')
-    if (roleParam === 'player' || roleParam === 'agent') {
+    if (roleParam === 'player' || roleParam === 'agent' || roleParam === 'scout') {
       setRole(roleParam)
     }
   }, [searchParams])
@@ -50,12 +50,18 @@ function SignupForm() {
           position: '',
           status: 'pending',
         })
-      } else {
+      } else if (role === 'agent') {
         await supabase.from('agents').insert({
           user_id: data.user.id,
           name: '',
           agency: '',
           subscription_status: 'inactive',
+        })
+      } else if (role === 'scout') {
+        await supabase.from('scouts').insert({
+          user_id: data.user.id,
+          name: '',
+          club_name: '',
         })
       }
 
@@ -74,20 +80,18 @@ function SignupForm() {
         </Link>
 
         <div className="text-center mb-8">
-          <img 
-            src="/player-fynder-logo.png" 
-            alt="PlayerFynder Logo" 
-            className="w-20 h-20 object-contain mx-auto mb-4"
-          />
+          <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <span className="text-white font-bold text-2xl">⚽</span>
+          </div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent">
             PlayerFynder
           </h1>
           <p className="text-gray-600 mt-2">
-            Join as a <span className="font-semibold text-red-600">{role === 'player' ? 'Player' : 'Agent'}</span>
+            Join as a <span className="font-semibold text-red-600">{role === 'player' ? 'Player' : role === 'agent' ? 'Agent' : 'Scout'}</span>
           </p>
         </div>
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-3 mb-6">
           <Link
             href="/signup?role=player"
             className={`flex-1 text-center py-2 rounded-lg border-2 transition ${
@@ -107,6 +111,16 @@ function SignupForm() {
             }`}
           >
             🤝 Agent
+          </Link>
+          <Link
+            href="/signup?role=scout"
+            className={`flex-1 text-center py-2 rounded-lg border-2 transition ${
+              role === 'scout'
+                ? 'border-green-600 bg-green-50 text-green-700'
+                : 'border-gray-300 text-gray-600 hover:border-green-400'
+            }`}
+          >
+            🎯 Scout
           </Link>
         </div>
 
@@ -146,7 +160,7 @@ function SignupForm() {
             disabled={loading}
             className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition disabled:opacity-50"
           >
-            {loading ? 'Creating Account...' : `Sign Up as ${role === 'player' ? 'Player' : 'Agent'}`}
+            {loading ? 'Creating Account...' : `Sign Up as ${role === 'player' ? 'Player' : role === 'agent' ? 'Agent' : 'Scout'}`}
           </button>
         </form>
 
