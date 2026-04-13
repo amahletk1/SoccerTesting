@@ -21,10 +21,19 @@ export default function CompleteProfilePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    const storedRole = localStorage.getItem('selectedRole')
-    if (storedRole === 'player' || storedRole === 'agent' || storedRole === 'scout') {
-      setRole(storedRole)
-      localStorage.removeItem('selectedRole')
+    // 1. Check for role from URL first (most reliable)
+    const urlParams = new URLSearchParams(window.location.search);
+    const roleFromUrl = urlParams.get('role');
+    if (roleFromUrl === 'player' || roleFromUrl === 'agent' || roleFromUrl === 'scout') {
+      setRole(roleFromUrl);
+      localStorage.setItem('selectedRole', roleFromUrl);
+    } 
+    // 2. If not in URL, check localStorage
+    else {
+      const storedRole = localStorage.getItem('selectedRole');
+      if (storedRole === 'player' || storedRole === 'agent' || storedRole === 'scout') {
+        setRole(storedRole);
+      }
     }
     
     checkExistingProfile()

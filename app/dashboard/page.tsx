@@ -89,6 +89,18 @@ export default function DashboardPage() {
           return
         }
 
+        // Check if scout
+        const { data: scout } = await supabase
+          .from('scouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        
+        if (scout) {
+          router.push('/dashboard/scout')
+          return
+        }
+
         router.push('/complete-profile')
       } catch (error) {
         console.error('Error:', error)
@@ -542,7 +554,7 @@ export default function DashboardPage() {
                   playerId={profile.id}
                   currentStats={currentStats}
                   onUpdate={refreshPlayerData}
-                   onClose={() => setShowStatsEditor(false)}  // Add this line
+                  onClose={() => setShowStatsEditor(false)}
                 />
               ) : (
                 <>
@@ -646,7 +658,7 @@ export default function DashboardPage() {
                   <Video className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                   <p className="text-gray-500">No media uploaded yet</p>
                   <Link
-                    href="/dashboard/profile?tab=media"
+                    href="/dashboard/profile"
                     className="inline-block mt-2 text-red-600 text-sm hover:underline"
                   >
                     Upload your first highlight →
@@ -691,7 +703,7 @@ export default function DashboardPage() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  Update your stats regularly to attract more agents
+                  Complete your profile to attract more agents
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
@@ -699,11 +711,11 @@ export default function DashboardPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  Respond quickly to engagement requests
+                  Update your stats regularly to stay relevant
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-500" />
-                  Complete your profile to stand out
+                  Respond quickly to engagement requests
                 </li>
               </ul>
             </div>
