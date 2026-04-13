@@ -89,7 +89,7 @@ export default function DashboardPage() {
           return
         }
 
-        // Check if scout
+        // CHECK IF USER IS A SCOUT - THIS IS THE CRITICAL FIX
         const { data: scout } = await supabase
           .from('scouts')
           .select('*')
@@ -97,10 +97,12 @@ export default function DashboardPage() {
           .maybeSingle()
         
         if (scout) {
+          // Scout role detected - redirect to the scout dashboard
           router.push('/dashboard/scout')
           return
         }
 
+        // If no role found, send to complete profile
         router.push('/complete-profile')
       } catch (error) {
         console.error('Error:', error)
