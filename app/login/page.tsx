@@ -16,9 +16,6 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // After successful login, clear the selectedRole
-localStorage.removeItem('selectedRole')
-
   useEffect(() => {
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
@@ -54,7 +51,15 @@ localStorage.removeItem('selectedRole')
           .eq('user_id', user.id)
           .single()
         
-        if (!player && !agent) {
+        const { data: scout } = await supabase
+          .from('scouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .single()
+        
+        if (scout) {
+          router.push('/dashboard/scout')
+        } else if (!player && !agent) {
           router.push('/complete-profile')
         } else {
           router.push('/dashboard')
@@ -121,6 +126,12 @@ localStorage.removeItem('selectedRole')
               placeholder="••••••••"
               required
             />
+            <Link 
+              href="/forgot-password" 
+              className="text-sm text-red-600 hover:underline block text-right mt-1"
+            >
+              Forgot Password?
+            </Link>
           </div>
 
           <button
