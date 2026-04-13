@@ -82,7 +82,7 @@ export default function CompleteProfilePage() {
 
     if (scout) {
       setAlreadyHasProfile(true)
-      setTimeout(() => router.push('/dashboard'), 2000)
+      setTimeout(() => router.push('/dashboard/scout'), 2000)
       return
     }
   }
@@ -115,6 +115,7 @@ export default function CompleteProfilePage() {
 
       if (error) {
         setError(error.message)
+        setLoading(false)
       } else {
         alert('Player profile submitted! Waiting for admin approval.')
         router.push('/dashboard')
@@ -130,6 +131,7 @@ export default function CompleteProfilePage() {
 
       if (error) {
         setError(error.message)
+        setLoading(false)
       } else {
         alert('Agent profile created!')
         router.push('/dashboard')
@@ -145,9 +147,10 @@ export default function CompleteProfilePage() {
 
       if (error) {
         setError(error.message)
+        setLoading(false)
       } else {
         alert('Scout profile created! You can now scout players.')
-        router.push('/dashboard')
+        router.push('/dashboard/scout')
       }
     }
     setLoading(false)

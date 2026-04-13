@@ -16,6 +16,9 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
+  // After successful login, clear the selectedRole
+localStorage.removeItem('selectedRole')
+
   useEffect(() => {
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
