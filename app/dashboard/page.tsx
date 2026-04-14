@@ -46,23 +46,18 @@ export default function DashboardPage() {
         }
         setUser(user)
 
-        // CHECK IF USER IS A SCOUT - FORCE REDIRECT (MUST BE FIRST!)
-        console.log('Checking for scout profile for user:', user.id)
-        const { data: scout, error: scoutError } = await supabase
-          .from('scouts')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle()
-        
-        console.log('Scout data:', scout)
-        console.log('Scout error:', scoutError)
+// IMMEDIATE SCOUT REDIRECT - Must be first
+const { data: scout, error: scoutErr } = await supabase
+  .from('scouts')
+  .select('id')
+  .eq('user_id', user.id)
+  .maybeSingle()
 
-        if (scout) {
-          console.log('SCOUT DETECTED! Redirecting to /dashboard/scout')
-          // Force a hard navigation to scout dashboard
-          window.location.href = '/dashboard/scout'
-          return
-        }
+if (scout) {
+  // Force hard navigation
+  window.location.href = '/dashboard/scout'
+  return
+}
 
         // Check if admin
         const { data: adminData } = await supabase
