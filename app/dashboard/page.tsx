@@ -38,12 +38,31 @@ export default function DashboardPage() {
   useEffect(() => {
     const getUser = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) {
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError || !user) {
           router.push('/login')
           return
         }
         setUser(user)
+
+        // CHECK IF USER IS A SCOUT - FORCE REDIRECT (MUST BE FIRST!)
+        console.log('Checking for scout profile for user:', user.id)
+        const { data: scout, error: scoutError } = await supabase
+          .from('scouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        
+        console.log('Scout data:', scout)
+        console.log('Scout error:', scoutError)
+
+        if (scout) {
+          console.log('SCOUT DETECTED! Redirecting to /dashboard/scout')
+          // Force a hard navigation to scout dashboard
+          window.location.href = '/dashboard/scout'
+          return
+        }
 
         // Check if admin
         const { data: adminData } = await supabase
@@ -86,19 +105,6 @@ export default function DashboardPage() {
           setProfile(agent)
           await fetchAgentData(agent.id)
           setLoading(false)
-          return
-        }
-
-        // CHECK IF USER IS A SCOUT - THIS IS THE CRITICAL FIX
-        const { data: scout } = await supabase
-          .from('scouts')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle()
-        
-        if (scout) {
-          // Scout role detected - redirect to the scout dashboard
-          router.push('/dashboard/scout')
           return
         }
 
