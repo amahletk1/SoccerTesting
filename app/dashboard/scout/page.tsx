@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Eye, FileText, TrendingUp, Target, Users, ArrowRight } from 'lucide-react'
+import { Eye, FileText, TrendingUp, Target, Users, ArrowRight, CheckCircle } from 'lucide-react'
 
 export default function ScoutDashboard() {
   const [profile, setProfile] = useState<any>(null)
