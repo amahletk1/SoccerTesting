@@ -5,13 +5,13 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
 export default function ScoutDashboard() {
+  const [profile, setProfile] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [scoutName, setScoutName] = useState('')
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const fetchProfile = async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) {
         router.push('/login')
@@ -20,18 +20,20 @@ export default function ScoutDashboard() {
 
       const { data: scout } = await supabase
         .from('scouts')
-        .select('name')
+        .select('*')
         .eq('user_id', user.id)
         .single()
 
-      if (scout) {
-        setScoutName(scout.name || 'Scout')
-      } else {
+      if (!scout) {
         router.push('/dashboard')
+        return
       }
+
+      setProfile(scout)
       setLoading(false)
     }
-    checkAuth()
+
+    fetchProfile()
   }, [])
 
   if (loading) {
@@ -43,12 +45,36 @@ export default function ScoutDashboard() {
   }
 
   return (
-    <div className="p-8">
-      <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-6">
-        ✅ Scout Dashboard - Success!
+    <div>
+      <div className="bg-gradient-to-r from-red-600 via-black to-blue-600 rounded-xl shadow-lg p-6 text-white mb-8">
+        <h1 className="text-3xl font-bold mb-2">Scout Dashboard</h1>
+        <p className="text-white/80">Welcome, {profile?.name || 'Scout'}!</p>
+        <p className="text-white/60 mt-1">Club: {profile?.club_name || 'Independent Scout'}</p>
       </div>
-      <h1 className="text-3xl font-bold mb-4">Welcome, {scoutName}!</h1>
-      <p>This is your scouting dashboard.</p>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-white rounded-xl shadow p-6 border-l-4 border-red-500">
+          <h2 className="text-xl font-semibold mb-2">Browse Players</h2>
+          <p className="text-gray-600">Find and evaluate football talent</p>
+          <button 
+            onClick={() => router.push('/dashboard/players')}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+          >
+            Browse Players →
+          </button>
+        </div>
+
+        <div className="bg-white rounded-xl shadow p-6 border-l-4 border-green-500">
+          <h2 className="text-xl font-semibold mb-2">My Reports</h2>
+          <p className="text-gray-600">View your scouting reports</p>
+          <button 
+            onClick={() => router.push('/dashboard/reports')}
+            className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
+          >
+            View Reports →
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
