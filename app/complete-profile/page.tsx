@@ -16,23 +16,21 @@ export default function CompleteProfilePage() {
   const [clubName, setClubName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [alreadyHasProfile, setAlreadyHasProfile] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    // 1. Check for role from URL first (most reliable)
-    const urlParams = new URLSearchParams(window.location.search);
-    const roleFromUrl = urlParams.get('role');
+    // Get role from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search)
+    const roleFromUrl = urlParams.get('role')
+    
     if (roleFromUrl === 'player' || roleFromUrl === 'agent' || roleFromUrl === 'scout') {
-      setRole(roleFromUrl);
-      localStorage.setItem('selectedRole', roleFromUrl);
-    } 
-    // 2. If not in URL, check localStorage
-    else {
-      const storedRole = localStorage.getItem('selectedRole');
+      setRole(roleFromUrl)
+      localStorage.setItem('selectedRole', roleFromUrl)
+    } else {
+      const storedRole = localStorage.getItem('selectedRole')
       if (storedRole === 'player' || storedRole === 'agent' || storedRole === 'scout') {
-        setRole(storedRole);
+        setRole(storedRole)
       }
     }
     
@@ -51,47 +49,46 @@ export default function CompleteProfilePage() {
       .from('admins')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (adminData) {
       router.push('/dashboard')
       return
     }
 
-    // Check existing profiles
+    // Check if user has a player profile
     const { data: player } = await supabase
       .from('players')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (player) {
-      setAlreadyHasProfile(true)
-      setTimeout(() => router.push('/dashboard'), 2000)
+      router.push('/dashboard')
       return
     }
 
+    // Check if user has an agent profile
     const { data: agent } = await supabase
       .from('agents')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (agent) {
-      setAlreadyHasProfile(true)
-      setTimeout(() => router.push('/dashboard'), 2000)
+      router.push('/dashboard')
       return
     }
 
+    // Check if user has a scout profile
     const { data: scout } = await supabase
       .from('scouts')
       .select('*')
       .eq('user_id', user.id)
-      .single()
+      .maybeSingle()
 
     if (scout) {
-      setAlreadyHasProfile(true)
-      setTimeout(() => router.push('/dashboard/scout'), 2000)
+      router.push('/dashboard/scout')
       return
     }
   }
@@ -163,17 +160,6 @@ export default function CompleteProfilePage() {
       }
     }
     setLoading(false)
-  }
-
-  if (alreadyHasProfile) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-red-50 to-blue-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-md w-full p-8 text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">You already have a profile. Redirecting to dashboard...</p>
-        </div>
-      </div>
-    )
   }
 
   return (
