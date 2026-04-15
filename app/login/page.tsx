@@ -49,18 +49,38 @@ function LoginForm() {
       return
     }
 
-    // DIRECT SCOUT CHECK - THIS IS THE FIX
+    console.log('=== DEBUG START ===')
+    console.log('User ID:', user.id)
+    console.log('User Email:', user.email)
+
+    // Check all scouts in database
+    const { data: allScouts } = await supabase.from('scouts').select('*')
+    console.log('All scouts in DB:', allScouts)
+
+    // Check specifically for this user
+    const { data: scoutCheck, error: scoutError } = await supabase
+      .from('scouts')
+      .select('*')
+      .eq('user_id', user.id)
+
+    console.log('Scout check for this user:', scoutCheck)
+    console.log('Scout error:', scoutError)
+    console.log('=== DEBUG END ===')
+
+    // DIRECT SCOUT CHECK
     const { data: scout } = await supabase
       .from('scouts')
-      .select('id')
+      .select('id, name')
       .eq('user_id', user.id)
       .maybeSingle()
 
     if (scout) {
-      // Force redirect to scout dashboard
+      console.log('SCOUT FOUND! Redirecting to /dashboard/scout')
       window.location.href = '/dashboard/scout'
       return
     }
+
+    console.log('No scout found, checking other roles...')
 
     // Check other roles
     const { data: player } = await supabase
@@ -70,6 +90,7 @@ function LoginForm() {
       .maybeSingle()
 
     if (player) {
+      console.log('Player found, redirecting to /dashboard')
       router.push('/dashboard')
       setLoading(false)
       return
@@ -82,12 +103,14 @@ function LoginForm() {
       .maybeSingle()
 
     if (agent) {
+      console.log('Agent found, redirecting to /dashboard')
       router.push('/dashboard')
       setLoading(false)
       return
     }
 
     // No profile found
+    console.log('No profile found, redirecting to complete-profile')
     router.push('/complete-profile')
     setLoading(false)
   }
