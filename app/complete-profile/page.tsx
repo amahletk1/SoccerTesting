@@ -56,41 +56,43 @@ export default function CompleteProfilePage() {
       return
     }
 
-    // Check if user has a player profile
+    // Check if user has a completed player profile
     const { data: player } = await supabase
       .from('players')
-      .select('*')
+      .select('name')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (player) {
+    if (player && player.name) {
       router.push('/dashboard')
       return
     }
 
-    // Check if user has an agent profile
+    // Check if user has a completed agent profile
     const { data: agent } = await supabase
       .from('agents')
-      .select('*')
+      .select('name')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (agent) {
+    if (agent && agent.name) {
       router.push('/dashboard')
       return
     }
 
-    // Check if user has a scout profile
+    // Check if user has a completed scout profile
     const { data: scout } = await supabase
       .from('scouts')
-      .select('*')
+      .select('name')
       .eq('user_id', user.id)
       .maybeSingle()
 
-    if (scout) {
+    if (scout && scout.name) {
       router.push('/dashboard/scout')
       return
     }
+
+    // No completed profile found - stay on this page
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
