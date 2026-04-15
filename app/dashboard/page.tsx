@@ -1,5 +1,29 @@
 'use client'
+export default function DashboardPage() {
+  const router = useRouter()
+  const supabase = createClient()
 
+  useEffect(() => {
+    const checkScoutFirst = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
+      const { data: scout } = await supabase
+        .from('scouts')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+      
+      if (scout) {
+        window.location.href = '/dashboard/scout'
+        return
+      }
+    }
+    checkScoutFirst()
+  }, [])
+
+  // Rest of your existing dashboard code...
+}
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
@@ -46,15 +70,14 @@ export default function DashboardPage() {
         }
         setUser(user)
 
-// IMMEDIATE SCOUT REDIRECT - Must be first
-const { data: scout, error: scoutErr } = await supabase
+// Immediately after setting user, before any other checks
+const { data: scout } = await supabase
   .from('scouts')
   .select('id')
   .eq('user_id', user.id)
   .maybeSingle()
 
 if (scout) {
-  // Force hard navigation
   window.location.href = '/dashboard/scout'
   return
 }
