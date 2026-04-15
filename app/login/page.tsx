@@ -16,6 +16,25 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
 
+  // Check if already logged in as scout
+  useEffect(() => {
+    const checkAlreadyLoggedIn = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: scout } = await supabase
+          .from('scouts')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (scout) {
+          console.log('Already logged in as scout, redirecting')
+          window.location.replace('/dashboard/scout')
+        }
+      }
+    }
+    checkAlreadyLoggedIn()
+  }, [])
+
   useEffect(() => {
     const confirmed = searchParams.get('confirmed')
     if (confirmed === 'true') {
@@ -40,7 +59,6 @@ function LoginForm() {
       return
     }
 
-    // Get user after successful login
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
@@ -49,38 +67,21 @@ function LoginForm() {
       return
     }
 
-    console.log('=== DEBUG START ===')
     console.log('User ID:', user.id)
-    console.log('User Email:', user.email)
 
-    // Check all scouts in database
-    const { data: allScouts } = await supabase.from('scouts').select('*')
-    console.log('All scouts in DB:', allScouts)
-
-    // Check specifically for this user
-    const { data: scoutCheck, error: scoutError } = await supabase
-      .from('scouts')
-      .select('*')
-      .eq('user_id', user.id)
-
-    console.log('Scout check for this user:', scoutCheck)
-    console.log('Scout error:', scoutError)
-    console.log('=== DEBUG END ===')
-
-    // DIRECT SCOUT CHECK
+    // Check if user is a scout
     const { data: scout } = await supabase
       .from('scouts')
-      .select('id, name')
+      .select('id')
       .eq('user_id', user.id)
       .maybeSingle()
 
     if (scout) {
       console.log('SCOUT FOUND! Redirecting to /dashboard/scout')
-      window.location.href = '/dashboard/scout'
-      return
+      // Use replace to prevent back button issues
+      window.location.replace('/dashboard/scout')
+      return  // Important: stop execution
     }
-
-    console.log('No scout found, checking other roles...')
 
     // Check other roles
     const { data: player } = await supabase
@@ -90,7 +91,6 @@ function LoginForm() {
       .maybeSingle()
 
     if (player) {
-      console.log('Player found, redirecting to /dashboard')
       router.push('/dashboard')
       setLoading(false)
       return
@@ -103,14 +103,11 @@ function LoginForm() {
       .maybeSingle()
 
     if (agent) {
-      console.log('Agent found, redirecting to /dashboard')
       router.push('/dashboard')
       setLoading(false)
       return
     }
 
-    // No profile found
-    console.log('No profile found, redirecting to complete-profile')
     router.push('/complete-profile')
     setLoading(false)
   }
