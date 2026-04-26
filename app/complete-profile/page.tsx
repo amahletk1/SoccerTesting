@@ -20,80 +20,12 @@ export default function CompleteProfilePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    // Get role from URL or localStorage
-    const urlParams = new URLSearchParams(window.location.search)
-    const roleFromUrl = urlParams.get('role')
-    
-    if (roleFromUrl === 'player' || roleFromUrl === 'agent' || roleFromUrl === 'scout') {
-      setRole(roleFromUrl)
-      localStorage.setItem('selectedRole', roleFromUrl)
-    } else {
-      const storedRole = localStorage.getItem('selectedRole')
-      if (storedRole === 'player' || storedRole === 'agent' || storedRole === 'scout') {
-        setRole(storedRole)
-      }
+    const storedRole = localStorage.getItem('selectedRole')
+    if (storedRole === 'player' || storedRole === 'agent' || storedRole === 'scout') {
+      setRole(storedRole)
+      localStorage.removeItem('selectedRole')
     }
-    
-    checkExistingProfile()
   }, [])
-
-  const checkExistingProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/login')
-      return
-    }
-
-    // Check if user is admin
-    const { data: adminData } = await supabase
-      .from('admins')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (adminData) {
-      router.push('/dashboard')
-      return
-    }
-
-    // Check if user has a completed player profile
-    const { data: player } = await supabase
-      .from('players')
-      .select('name')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (player && player.name) {
-      router.push('/dashboard')
-      return
-    }
-
-    // Check if user has a completed agent profile
-    const { data: agent } = await supabase
-      .from('agents')
-      .select('name')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (agent && agent.name) {
-      router.push('/dashboard')
-      return
-    }
-
-    // Check if user has a completed scout profile
-    const { data: scout } = await supabase
-      .from('scouts')
-      .select('name')
-      .eq('user_id', user.id)
-      .maybeSingle()
-
-    if (scout && scout.name) {
-      router.push('/dashboard/scout')
-      return
-    }
-
-    // No completed profile found - stay on this page
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -145,20 +77,31 @@ export default function CompleteProfilePage() {
         router.push('/dashboard')
       }
     } else if (role === 'scout') {
-      const { error } = await supabase
+      console.log('Saving scout profile for user:', user.id)
+      console.log('Name:', name, 'Club:', clubName)
+      
+      // Try to insert/update scout profile
+      const { data, error } = await supabase
         .from('scouts')
-        .update({
+        .upsert({
+          user_id: user.id,
           name: name,
           club_name: clubName || null,
         })
-        .eq('user_id', user.id)
+        .select()
+
+      console.log('Upsert result:', { data, error })
 
       if (error) {
         setError(error.message)
+        console.error('Scout save error:', error)
         setLoading(false)
       } else {
-        alert('Scout profile created! You can now scout players.')
-        router.push('/dashboard/scout')
+        console.log('Scout saved successfully!', data)
+        alert('Scout profile created!')
+        // Direct navigation
+        window.location.href = '/dashboard/scout'
+        return
       }
     }
     setLoading(false)

@@ -40,74 +40,53 @@ function LoginForm() {
       return
     }
 
-    // Get user after successful login
     const { data: { user } } = await supabase.auth.getUser()
-
+    
     if (!user) {
       setError('User not found')
       setLoading(false)
       return
     }
 
-    // ============================================
-    // HARDCODED REDIRECT FOR SCOUT TESTING
-    // ============================================
-    if (email === 'tacakiw352@bpotogo.com') {
-      console.log('HARDCODED: Redirecting scout to /dashboard/scout')
-      window.location.href = '/dashboard/scout'
-      return
-    }
-
-    console.log('User ID:', user.id)
-    console.log('User Email:', user.email)
-
-    // Check if user is a scout
-    const { data: scout, error: scoutError } = await supabase
+    // CHECK IF USER IS A SCOUT
+    const { data: scout } = await supabase
       .from('scouts')
-      .select('id, name')
+      .select('*')
       .eq('user_id', user.id)
       .maybeSingle()
-
-    console.log('Scout data:', scout)
-    console.log('Scout error:', scoutError)
 
     if (scout) {
-      console.log('SCOUT FOUND! Redirecting to /dashboard/scout')
       window.location.href = '/dashboard/scout'
       return
     }
 
-    console.log('No scout found, checking other roles...')
-
-    // Check other roles
+    // Check if player
     const { data: player } = await supabase
       .from('players')
-      .select('id')
+      .select('*')
       .eq('user_id', user.id)
       .maybeSingle()
-
+    
     if (player) {
-      console.log('Player found, redirecting to /dashboard')
       router.push('/dashboard')
       setLoading(false)
       return
     }
 
+    // Check if agent
     const { data: agent } = await supabase
       .from('agents')
-      .select('id')
+      .select('*')
       .eq('user_id', user.id)
       .maybeSingle()
-
+    
     if (agent) {
-      console.log('Agent found, redirecting to /dashboard')
       router.push('/dashboard')
       setLoading(false)
       return
     }
 
     // No profile found
-    console.log('No profile found, redirecting to complete-profile')
     router.push('/complete-profile')
     setLoading(false)
   }

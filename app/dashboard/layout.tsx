@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3, MessageSquare
+  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3, Target
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const [userRole, setUserRole] = useState<'player' | 'agent' | 'admin' | null>(null)
+  const [userRole, setUserRole] = useState<'player' | 'agent' | 'admin' | 'scout' | null>(null)
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
   const [notificationCount, setNotificationCount] = useState(0)
@@ -81,6 +81,20 @@ export default function DashboardLayout({
           return
         }
 
+        // Check if user is scout
+        const { data: scout } = await supabase
+          .from('scouts')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (scout) {
+          setUserRole('scout')
+          setUserName(scout.name || user.email?.split('@')[0] || 'Scout')
+          setLoading(false)
+          return
+        }
+
         router.replace('/complete-profile')
       } catch (error) {
         console.error('Error checking user:', error)
@@ -142,14 +156,14 @@ export default function DashboardLayout({
           <span className={`inline-block mt-1 px-2 py-0.5 text-xs rounded-full ${
             userRole === 'player' ? 'bg-red-100 text-red-700' : 
             userRole === 'agent' ? 'bg-blue-100 text-blue-700' : 
+            userRole === 'scout' ? 'bg-green-100 text-green-700' :
             'bg-black text-white'
           }`}>
-            {userRole === 'player' ? 'Player' : userRole === 'agent' ? 'Agent' : 'Admin'}
+            {userRole === 'player' ? 'Player' : userRole === 'agent' ? 'Agent' : userRole === 'scout' ? 'Scout' : 'Admin'}
           </span>
         </div>
 
         <nav className="mt-4">
-          {/* Dashboard - Common for all */}
           <Link 
             href="/dashboard" 
             className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
@@ -158,7 +172,6 @@ export default function DashboardLayout({
             Dashboard
           </Link>
 
-          {/* Notifications - Common for all */}
           <Link 
             href="/dashboard/notifications" 
             className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
@@ -172,15 +185,24 @@ export default function DashboardLayout({
             )}
           </Link>
 
-          {/* Messages - Only for Agents and Players */}
-          {(userRole === 'agent' || userRole === 'player') && (
-            <Link 
-              href="/dashboard/messages" 
-              className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-            >
-              <MessageSquare className="w-5 h-5 mr-3" />
-              Messages
-            </Link>
+          {/* Scout Links */}
+          {userRole === 'scout' && (
+            <>
+              <Link 
+                href="/dashboard/scout" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"
+              >
+                <Target className="w-5 h-5 mr-3" />
+                Scouting
+              </Link>
+              <Link 
+                href="/dashboard/players" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"
+              >
+                <Users className="w-5 h-5 mr-3" />
+                Browse Players
+              </Link>
+            </>
           )}
 
           {/* Admin Links */}

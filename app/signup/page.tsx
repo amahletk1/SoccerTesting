@@ -40,38 +40,33 @@ function SignupForm() {
     }
 
     if (data.user) {
-      // Save the selected role to localStorage
       localStorage.setItem('selectedRole', role)
       
-      // Create the appropriate profile
       if (role === 'player') {
-        const { error: playerError } = await supabase.from('players').insert({
+        await supabase.from('players').insert({
           user_id: data.user.id,
           name: '',
           age: null,
           position: '',
           status: 'pending',
         })
-        if (playerError) console.error('Player insert error:', playerError)
       } else if (role === 'agent') {
-        const { error: agentError } = await supabase.from('agents').insert({
+        await supabase.from('agents').insert({
           user_id: data.user.id,
           name: '',
           agency: '',
           subscription_status: 'inactive',
         })
-        if (agentError) console.error('Agent insert error:', agentError)
       } else if (role === 'scout') {
-        const { error: scoutError } = await supabase.from('scouts').insert({
+        await supabase.from('scouts').insert({
           user_id: data.user.id,
           name: '',
           club_name: '',
         })
-        if (scoutError) console.error('Scout insert error:', scoutError)
       }
 
       alert('Account created! Please check your email to confirm.')
-      router.push('/login')
+      router.push(`/complete-profile?role=${role}`)
     }
     setLoading(false)
   }
