@@ -1,123 +1,174 @@
 'use client'
 
 import Link from 'next/link'
-import { Shield, Trophy, Users, ArrowRight, UserPlus, Briefcase, Target } from 'lucide-react'
+import { Shield, Trophy, Users, ArrowRight, UserPlus, Briefcase, Target, ChevronRight } from 'lucide-react'
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 via-white to-blue-50">
-      <div className="relative overflow-hidden">
-        {/* Animated background circles */}
-        <div className="absolute top-0 left-0 w-96 h-96 bg-red-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-blob animation-delay-2000"></div>
+    <div className="min-h-screen bg-gradient-to-br from-white via-red-50 to-blue-50">
+      
+      {/* Top Navigation */}
+      <nav className="bg-white/90 backdrop-blur-sm sticky top-0 z-50 border-b border-gray-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <img 
+              src="/player-fynder-logo.png" 
+              alt="PlayerFynder" 
+              className="w-8 h-8 object-contain"
+            />
+            <span className="font-bold text-gray-800">PlayerFynder</span>
+          </div>
+          <Link href="/login" className="text-gray-600 hover:text-red-600 transition text-sm">
+            Sign In
+          </Link>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
         
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center relative">
+        {/* Hero Section with Logo */}
+        <div className="text-center">
           
-          {/* Logo Section - Enhanced Large Logo */}
-          <div className="flex flex-col items-center justify-center mb-12">
-            <div className="relative">
-              {/* Glow effect behind logo */}
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-blue-500 rounded-full blur-2xl opacity-50"></div>
-              <div className="relative w-32 h-32 md:w-40 md:h-40 bg-gradient-to-br from-red-600 to-blue-600 rounded-full flex items-center justify-center shadow-2xl border-4 border-white">
-                <img 
-                  src="/player-fynder-logo.png" 
-                  alt="PlayerFynder Logo" 
-                  className="w-24 h-24 md:w-28 md:h-28 object-contain"
-                />
+          {/* Large Logo with Soccer Ball Animation */}
+          <div className="flex justify-center mb-4 relative">
+            {/* Bouncing Soccer Ball */}
+            <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-10">
+              <div className="animate-bounce-soccer">
+                <div className="w-12 h-12 bg-black rounded-full flex items-center justify-center shadow-lg">
+                  {/* Soccer ball pattern */}
+                  <div className="w-10 h-10 bg-white rounded-full relative">
+                    <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-black transform -translate-y-1/2"></div>
+                    <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-black transform -translate-x-1/2"></div>
+                    <div className="absolute top-1/4 left-1/4 w-3 h-3 bg-black rounded-full"></div>
+                    <div className="absolute bottom-1/4 right-1/4 w-3 h-3 bg-black rounded-full"></div>
+                    <div className="absolute top-1/4 right-1/4 w-2 h-2 bg-black rounded-full"></div>
+                    <div className="absolute bottom-1/4 left-1/4 w-2 h-2 bg-black rounded-full"></div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 bg-black rounded-full"></div>
+                  </div>
+                </div>
               </div>
-              {/* Decorative rings */}
-              <div className="absolute -inset-3 border-2 border-red-300 rounded-full opacity-30"></div>
-              <div className="absolute -inset-6 border border-blue-300 rounded-full opacity-20"></div>
             </div>
-            
-            {/* Logo Text */}
-            <div className="mt-6 text-center">
-              <h2 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent">
-                PlayerFynder
-              </h2>
-              <p className="text-gray-500 text-sm mt-1">Elite Scouting Network</p>
-              <div className="flex justify-center gap-1 mt-2">
-                <div className="w-8 h-1 bg-red-600 rounded-full"></div>
-                <div className="w-8 h-1 bg-blue-600 rounded-full"></div>
-                <div className="w-8 h-1 bg-black rounded-full"></div>
-              </div>
+
+            {/* Logo Card */}
+            <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 mt-6">
+              <img 
+                src="/player-fynder-logo.png" 
+                alt="PlayerFynder Logo" 
+                className="w-24 h-24 md:w-32 md:h-32 object-contain"
+              />
             </div>
           </div>
 
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            <span className="bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent">
-              Elite Football
-            </span>
-            <br />
-            <span className="text-gray-900">Talent Platform</span>
+          {/* Title with soccer ball accent */}
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold text-gray-900 mb-4 mt-4">
+            Player<span className="text-red-600">Fynder</span>
           </h1>
           
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto mb-12">
-            Connect with verified agents, scouts, and sporting directors. Showcase your talent to the world's top talent finders.
+          {/* Subtitle */}
+          <p className="text-lg md:text-xl text-gray-600 mb-4">
+            Window to Africa's Talent
+          </p>
+          
+          <div className="flex justify-center gap-2 mb-8">
+            <div className="w-12 h-1 bg-red-600 rounded-full"></div>
+            <div className="w-12 h-1 bg-blue-600 rounded-full"></div>
+            <div className="w-12 h-1 bg-black rounded-full"></div>
+          </div>
+
+          {/* Description */}
+          <p className="text-gray-600 max-w-2xl mx-auto mb-12 leading-relaxed">
+            The premier platform connecting African football talent with verified 
+            agents, scouts, and clubs worldwide.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-20">
             <Link
               href="/signup?role=player"
-              className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-xl font-semibold hover:from-red-700 hover:to-red-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="group bg-red-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-red-700 transition shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <UserPlus className="mr-2 w-5 h-5" />
-              Apply as Player
-              <ArrowRight className="ml-2 w-5 h-5 group-hover:translate-x-1 transition" />
+              <UserPlus className="w-4 h-4" />
+              Join as Player
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
             </Link>
             <Link
               href="/signup?role=agent"
-              className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="group bg-blue-600 text-white px-8 py-3 rounded-full font-semibold hover:bg-blue-700 transition shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <Briefcase className="mr-2 w-5 h-5" />
+              <Briefcase className="w-4 h-4" />
               Join as Agent
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
             </Link>
             <Link
               href="/signup?role=scout"
-              className="group inline-flex items-center px-8 py-4 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+              className="group bg-black text-white px-8 py-3 rounded-full font-semibold hover:bg-gray-800 transition shadow-md hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <Target className="mr-2 w-5 h-5" />
+              <Target className="w-4 h-4" />
               Join as Scout
+              <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition" />
             </Link>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-3xl mx-auto mb-20">
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-red-600">15+</p>
+              <p className="text-xs text-gray-500">African Countries</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-blue-600">500+</p>
+              <p className="text-xs text-gray-500">Verified Scouts</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-red-600">1K+</p>
+              <p className="text-xs text-gray-500">Active Players</p>
+            </div>
+            <div className="text-center">
+              <p className="text-3xl md:text-4xl font-bold text-blue-600">50+</p>
+              <p className="text-xs text-gray-500">Partner Clubs</p>
+            </div>
           </div>
 
           {/* Features */}
-          <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-t-4 border-red-500">
-              <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Shield className="w-7 h-7 text-white" />
+          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="bg-white rounded-xl p-6 text-center shadow-md hover:shadow-lg transition">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Shield className="w-6 h-6 text-red-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Verified Scouts</h3>
-              <p className="text-gray-600">All agents, scouts, and players are thoroughly vetted</p>
+              <h3 className="font-semibold text-gray-800">Verified Network</h3>
+              <p className="text-sm text-gray-500">Trusted professionals</p>
             </div>
-            
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-t-4 border-black">
-              <div className="w-14 h-14 bg-gradient-to-br from-black to-gray-800 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Trophy className="w-7 h-7 text-yellow-400" />
+            <div className="bg-white rounded-xl p-6 text-center shadow-md hover:shadow-lg transition">
+              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Trophy className="w-6 h-6 text-blue-600" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Curated Talent</h3>
-              <p className="text-gray-600">Access the most promising football talents</p>
+              <h3 className="font-semibold text-gray-800">Curated Talent</h3>
+              <p className="text-sm text-gray-500">Top African players</p>
             </div>
-            
-            <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 border-t-4 border-blue-500">
-              <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-                <Users className="w-7 h-7 text-white" />
+            <div className="bg-white rounded-xl p-6 text-center shadow-md hover:shadow-lg transition">
+              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                <Users className="w-6 h-6 text-gray-700" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Exclusive Access</h3>
-              <p className="text-gray-600">Direct engagement between talent finders and players</p>
+              <h3 className="font-semibold text-gray-800">Direct Access</h3>
+              <p className="text-sm text-gray-500">Connect instantly</p>
             </div>
           </div>
 
-          <div className="mt-12">
-            <Link
-              href="/login"
-              className="text-gray-500 hover:text-red-600 transition font-medium"
-            >
-              Already have an account? Sign In →
+          {/* Sign In Link */}
+          <div className="mt-16">
+            <Link href="/login" className="text-gray-400 hover:text-red-600 transition text-sm">
+              Already have an account? Sign in →
             </Link>
           </div>
+
+          {/* Footer */}
+          <div className="mt-12 pt-8 border-t border-gray-200">
+            <p className="text-xs text-gray-400">
+              © 2024 PlayerFynder. Connecting Africa's football talent to the world.
+            </p>
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }

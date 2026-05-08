@@ -33,3 +33,56 @@ body {
 .animation-delay-2000 {
   animation-delay: 2s;
 }
+/* ADD THESE NEW ANIMATIONS */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+.animation-delay-4000 {
+  animation-delay: 4s;
+}
+
+/* Bouncing soccer ball animation */
+@keyframes bounceSoccer {
+  0% {
+    transform: translateY(0) scale(1);
+  }
+  30% {
+    transform: translateY(-30px) scale(1.1);
+  }
+  50% {
+    transform: translateY(0) scale(1);
+  }
+  70% {
+    transform: translateY(-15px) scale(1.05);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-bounce-soccer {
+  animation: bounceSoccer 1.5s ease-in-out;
+}
