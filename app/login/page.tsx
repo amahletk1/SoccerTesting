@@ -48,6 +48,20 @@ function LoginForm() {
       return
     }
 
+    // CHECK ADMIN FIRST (MOST IMPORTANT)
+    const { data: admin } = await supabase
+      .from('admins')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (admin) {
+      console.log('Admin logged in, redirecting to dashboard')
+      router.push('/dashboard')
+      setLoading(false)
+      return
+    }
+
     // CHECK IF USER IS A SCOUT
     const { data: scout } = await supabase
       .from('scouts')

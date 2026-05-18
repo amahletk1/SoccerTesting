@@ -11,6 +11,36 @@ body {
   min-height: 100vh;
 }
 
+/* Mobile optimizations */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+  
+  input, select, textarea, button {
+    font-size: 16px !important; /* Prevents zoom on focus on iOS */
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--primary-red);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary-blue);
+}
+
 @keyframes blob {
   0% {
     transform: translate(0px, 0px) scale(1);
@@ -33,56 +63,35 @@ body {
 .animation-delay-2000 {
   animation-delay: 2s;
 }
-/* ADD THESE NEW ANIMATIONS */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
 
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-@keyframes bounce {
-  0%, 100% {
-    transform: translateY(0);
+/* Table responsive */
+@media (max-width: 768px) {
+  table, thead, tbody, th, td, tr {
+    display: block;
   }
-  50% {
-    transform: translateY(-10px);
+  thead tr {
+    position: absolute;
+    top: -9999px;
+    left: -9999px;
   }
-}
-
-.animate-bounce {
-  animation: bounce 1s infinite;
-}
-
-.animation-delay-4000 {
-  animation-delay: 4s;
-}
-
-/* Bouncing soccer ball animation */
-@keyframes bounceSoccer {
-  0% {
-    transform: translateY(0) scale(1);
+  tr {
+    border: 1px solid #ccc;
+    margin-bottom: 0.5rem;
   }
-  30% {
-    transform: translateY(-30px) scale(1.1);
+  td {
+    border: none;
+    position: relative;
+    padding-left: 50% !important;
+    text-align: left !important;
   }
-  50% {
-    transform: translateY(0) scale(1);
+  td:before {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 45%;
+    padding-right: 10px;
+    white-space: nowrap;
+    font-weight: bold;
+    content: attr(data-label);
   }
-  70% {
-    transform: translateY(-15px) scale(1.05);
-  }
-  100% {
-    transform: translateY(0) scale(1);
-  }
-}
-
-.animate-bounce-soccer {
-  animation: bounceSoccer 1.5s ease-in-out;
 }

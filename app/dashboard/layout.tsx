@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3, Target
+  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3, Target, Eye, Edit3
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -254,13 +254,22 @@ export default function DashboardLayout({
 
           {/* Player Links */}
           {userRole === 'player' && (
-            <Link 
-              href="/dashboard/profile" 
-              className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-            >
-              <UserCircle className="w-5 h-5 mr-3" />
-              My Profile
-            </Link>
+            <>
+              <Link 
+                href="/dashboard/player-view" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <Eye className="w-5 h-5 mr-3" />
+                My Profile
+              </Link>
+              <Link 
+                href="/dashboard/profile" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <Edit3 className="w-5 h-5 mr-3" />
+                Edit Profile
+              </Link>
+            </>
           )}
         </nav>
 
