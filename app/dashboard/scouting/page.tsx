@@ -5,347 +5,192 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  Search, Filter, Eye, Star, TrendingUp, Users,
-  Calendar, MapPin, Target, BarChart3, ArrowUpDown,
-  UserPlus, Briefcase, Activity, Zap, Flame
+  FileText, Eye, Star, Calendar, TrendingUp, 
+  Target, Activity, Award, ChevronRight
 } from 'lucide-react'
 
-export default function ScoutingPage() {
-  const [players, setPlayers] = useState<any[]>([])
+export default function MyReportsPage() {
+  const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [hotProspects, setHotProspects] = useState<any[]>([])
-  const [filters, setFilters] = useState({
-    position: '',
-    ageMin: '',
-    ageMax: '',
-    nationality: '',
-    sortBy: 'recent'
-  })
-  const [showFilters, setShowFilters] = useState(false)
-  const [compareMode, setCompareMode] = useState(false)
-  const [selectedForCompare, setSelectedForCompare] = useState<string[]>([])
+  const [scoutId, setScoutId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    fetchPlayers()
-    fetchHotProspects()
-  }, [filters])
+    fetchScoutAndReports()
+  }, [])
 
-  const fetchPlayers = async () => {
-    setLoading(true)
-    
-    let query = supabase
-      .from('players')
-      .select('*, player_stats(*)')
-      .eq('status', 'approved')
-    
-    if (filters.position) {
-      query = query.eq('position', filters.position)
+  const fetchScoutAndReports = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
     }
-    if (filters.ageMin) {
-      query = query.gte('age', parseInt(filters.ageMin))
+
+    const { data: scout } = await supabase
+      .from('scouts')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (!scout) {
+      router.push('/dashboard/scout')
+      return
     }
-    if (filters.ageMax) {
-      query = query.lte('age', parseInt(filters.ageMax))
-    }
-    if (filters.nationality) {
-      query = query.ilike('nationality', `%${filters.nationality}%`)
-    }
-    
-    if (filters.sortBy === 'goals') {
-      query = query.order('player_stats.goals', { ascending: false })
-    } else if (filters.sortBy === 'age') {
-      query = query.order('age', { ascending: true })
-    } else {
-      query = query.order('created_at', { ascending: false })
-    }
-    
-    const { data, error } = await query
-    
-    if (error) {
-      console.error('Error fetching players:', error)
-    } else {
-      setPlayers(data || [])
-    }
+
+    setScoutId(scout.id)
+    await fetchReports(scout.id)
+  }
+
+  const fetchReports = async (scoutId: string) => {
+    const { data } = await supabase
+      .from('scouting_reports')
+      .select(`
+        *,
+        player:players(id, name, position, age, nationality, profile_picture)
+      `)
+      .eq('scout_id', scoutId)
+      .order('created_at', { ascending: false })
+
+    if (data) setReports(data)
     setLoading(false)
   }
 
-  const fetchHotProspects = async () => {
-    // Players with high stats or recent activity
-    const { data } = await supabase
-      .from('players')
-      .select('*, player_stats(*)')
-      .eq('status', 'approved')
-      .order('created_at', { ascending: false })
-      .limit(3)
-    
-    if (data) setHotProspects(data)
-  }
-
-  const toggleCompare = (playerId: string) => {
-    if (selectedForCompare.includes(playerId)) {
-      setSelectedForCompare(selectedForCompare.filter(id => id !== playerId))
-    } else {
-      if (selectedForCompare.length < 3) {
-        setSelectedForCompare([...selectedForCompare, playerId])
-      }
+  const getRecommendationBadge = (rec: string) => {
+    switch (rec) {
+      case 'sign_immediately':
+        return { text: 'Sign Immediately', color: 'bg-green-100 text-green-700', icon: Target }
+      case 'trial_recommended':
+        return { text: 'Trial Recommended', color: 'bg-blue-100 text-blue-700', icon: Activity }
+      case 'monitor_further':
+        return { text: 'Monitor Further', color: 'bg-yellow-100 text-yellow-700', icon: Eye }
+      default:
+        return { text: 'Not Recommended', color: 'bg-red-100 text-red-700', icon: XCircle }
     }
   }
 
-  const getRatingColor = (rating: number) => {
-    if (rating >= 8) return 'text-green-600 bg-green-100'
-    if (rating >= 6) return 'text-yellow-600 bg-yellow-100'
-    return 'text-red-600 bg-red-100'
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+      </div>
+    )
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center flex-wrap gap-4">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent">
-            Talent Discovery
-          </h1>
-          <p className="text-gray-600 mt-1">Find and evaluate the next generation of football stars</p>
-        </div>
-        <button
-          onClick={() => setShowFilters(!showFilters)}
-          className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-        >
-          <Filter className="w-4 h-4" />
-          {showFilters ? 'Hide Filters' : 'Show Filters'}
-        </button>
-      </div>
+    <div>
+      <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent mb-2">
+        My Scouting Reports
+      </h1>
+      <p className="text-gray-600 mb-8">View and manage your player evaluations</p>
 
-      {/* Filters Panel */}
-      {showFilters && (
-        <div className="bg-white rounded-xl shadow p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <select
-              value={filters.position}
-              onChange={(e) => setFilters({ ...filters, position: e.target.value })}
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500"
-            >
-              <option value="">All Positions</option>
-              <option value="Forward">Forward</option>
-              <option value="Midfielder">Midfielder</option>
-              <option value="Defender">Defender</option>
-              <option value="Goalkeeper">Goalkeeper</option>
-            </select>
-            
-            <input
-              type="number"
-              placeholder="Min Age"
-              value={filters.ageMin}
-              onChange={(e) => setFilters({ ...filters, ageMin: e.target.value })}
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500"
-            />
-            
-            <input
-              type="number"
-              placeholder="Max Age"
-              value={filters.ageMax}
-              onChange={(e) => setFilters({ ...filters, ageMax: e.target.value })}
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500"
-            />
-            
-            <input
-              type="text"
-              placeholder="Nationality"
-              value={filters.nationality}
-              onChange={(e) => setFilters({ ...filters, nationality: e.target.value })}
-              className="px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500"
-            />
-          </div>
-          <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Sort by:</span>
-              <select
-                value={filters.sortBy}
-                onChange={(e) => setFilters({ ...filters, sortBy: e.target.value })}
-                className="px-3 py-1 border rounded-lg text-sm"
-              >
-                <option value="recent">Most Recent</option>
-                <option value="goals">Most Goals</option>
-                <option value="age">Youngest First</option>
-              </select>
-            </div>
-            <button
-              onClick={() => setFilters({
-                position: '', ageMin: '', ageMax: '', nationality: '', sortBy: 'recent'
-              })}
-              className="text-sm text-red-600 hover:underline"
-            >
-              Clear all filters
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Hot Prospects Section */}
-      {hotProspects.length > 0 && (
-        <div className="bg-gradient-to-r from-red-50 via-yellow-50 to-orange-50 rounded-xl shadow p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <Flame className="w-5 h-5 text-orange-500" />
-            <h2 className="text-xl font-semibold">🔥 Hot Prospects</h2>
-            <span className="text-xs text-gray-500">Recommended for you</span>
-          </div>
-          <div className="grid md:grid-cols-3 gap-4">
-            {hotProspects.map((player) => (
-              <div key={player.id} className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-gray-900">{player.name}</h3>
-                    <p className="text-sm text-gray-500">{player.position}</p>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    <span className="font-semibold">8.5</span>
-                  </div>
-                </div>
-                <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                  <div className="flex items-center gap-1">
-                    <Target className="w-3 h-3 text-gray-400" />
-                    <span>Goals: {player.player_stats?.[0]?.goals || 0}</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Activity className="w-3 h-3 text-gray-400" />
-                    <span>Assists: {player.player_stats?.[0]?.assists || 0}</span>
-                  </div>
-                </div>
-                <div className="mt-3 flex gap-2">
-                  <Link
-                    href={`/dashboard/players/${player.id}?scoutMode=true`}
-                    className="flex-1 text-center text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                  >
-                    Scout
-                  </Link>
-                  <Link
-                    href={`/dashboard/players/${player.id}`}
-                    className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
-                  >
-                    View
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Compare Mode Toggle */}
-      <div className="flex justify-end">
-        <button
-          onClick={() => {
-            setCompareMode(!compareMode)
-            setSelectedForCompare([])
-          }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-            compareMode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700'
-          }`}
-        >
-          <BarChart3 className="w-4 h-4" />
-          {compareMode ? 'Exit Compare Mode' : 'Compare Players'}
-          {compareMode && selectedForCompare.length > 0 && (
-            <span className="ml-2 bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs">
-              {selectedForCompare.length}/3
-            </span>
-          )}
-        </button>
-      </div>
-
-      {/* Players Grid */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
-        </div>
-      ) : players.length === 0 ? (
-        <div className="bg-white rounded-xl shadow p-12 text-center">
-          <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <p className="text-gray-500">No players found matching your criteria</p>
+      {reports.length === 0 ? (
+        <div className="bg-white rounded-xl shadow p-12 text-center border-t-4 border-red-500">
+          <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500">No scouting reports yet</p>
+          <p className="text-sm text-gray-400 mt-2">Start scouting players to create reports</p>
+          <Link href="/dashboard/players?scoutMode=true" className="inline-block mt-4 text-green-600 hover:underline">
+            Browse Players →
+          </Link>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {players.map((player) => (
-            <div key={player.id} className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition border-t-4 border-red-500">
-              <div className="p-5">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">{player.name}</h3>
-                    <p className="text-gray-600">{player.position}</p>
-                  </div>
-                  {compareMode && (
-                    <button
-                      onClick={() => toggleCompare(player.id)}
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        selectedForCompare.includes(player.id)
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'border-gray-300 hover:border-blue-400'
-                      }`}
-                    >
-                      {selectedForCompare.includes(player.id) && '✓'}
-                    </button>
-                  )}
-                </div>
-                
-                <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                  <span>Age {player.age}</span>
-                  <MapPin className="w-4 h-4 ml-2" />
-                  <span>{player.nationality || 'N/A'}</span>
-                </div>
-
-                {player.player_stats && player.player_stats.length > 0 && (
-                  <div className="mt-4 bg-gray-50 rounded-lg p-3">
-                    <div className="grid grid-cols-3 text-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {reports.map((report) => {
+            const badge = getRecommendationBadge(report.recommendation)
+            const BadgeIcon = badge.icon
+            
+            return (
+              <div key={report.id} className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition border-l-4 border-green-500">
+                <div className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      {report.player?.profile_picture ? (
+                        <img src={report.player.profile_picture} alt={report.player.name} className="w-12 h-12 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                          <Target className="w-6 h-6 text-gray-500" />
+                        </div>
+                      )}
                       <div>
-                        <p className="text-xs text-gray-500">Matches</p>
-                        <p className="font-bold text-gray-900">{player.player_stats[0]?.matches_played || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Goals</p>
-                        <p className="font-bold text-red-600">{player.player_stats[0]?.goals || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Assists</p>
-                        <p className="font-bold text-blue-600">{player.player_stats[0]?.assists || 0}</p>
+                        <h3 className="text-xl font-bold text-gray-900">{report.player?.name}</h3>
+                        <p className="text-gray-600 text-sm">
+                          {report.player?.position} • Age {report.player?.age} • {report.player?.nationality || 'N/A'}
+                        </p>
                       </div>
                     </div>
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full ${badge.color}`}>
+                      <BadgeIcon className="w-3 h-3" />
+                      {badge.text}
+                    </span>
                   </div>
-                )}
 
-                <div className="mt-4 flex gap-2">
-                  <Link
-                    href={`/dashboard/players/${player.id}?scoutMode=true`}
-                    className="flex-1 text-center py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm flex items-center justify-center gap-1"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Scout
-                  </Link>
-                  <Link
-                    href={`/dashboard/players/${player.id}`}
-                    className="flex-1 text-center py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
-                  >
-                    Profile
-                  </Link>
+                  {/* Ratings Summary */}
+                  <div className="mt-4 grid grid-cols-3 gap-2">
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Speed</p>
+                      <p className="font-bold text-lg">{report.speed_rating}/10</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Shooting</p>
+                      <p className="font-bold text-lg">{report.shooting_rating}/10</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Passing</p>
+                      <p className="font-bold text-lg">{report.passing_rating}/10</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Dribbling</p>
+                      <p className="font-bold text-lg">{report.dribbling_rating}/10</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Defending</p>
+                      <p className="font-bold text-lg">{report.defending_rating}/10</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-xs text-gray-500">Physical</p>
+                      <p className="font-bold text-lg">{report.physical_rating}/10</p>
+                    </div>
+                  </div>
+
+                  {/* Overall Rating */}
+                  <div className="mt-4 pt-3 border-t flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Award className="w-5 h-5 text-yellow-500" />
+                      <span className="font-semibold">Overall Rating:</span>
+                      <span className="text-xl font-bold text-yellow-600">{report.overall_rating}/10</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Calendar className="w-4 h-4" />
+                      {new Date(report.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+
+                  {/* Strengths Preview */}
+                  {report.strengths && (
+                    <div className="mt-3 text-sm">
+                      <p className="text-gray-500">Strengths:</p>
+                      <p className="text-gray-700 line-clamp-2">{report.strengths}</p>
+                    </div>
+                  )}
+
+                  <div className="mt-4 flex gap-2">
+                    <Link
+                      href={`/dashboard/players/${report.player_id}`}
+                      className="flex-1 text-center py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
+                    >
+                      View Player
+                    </Link>
+                    <Link
+                      href={`/dashboard/scouting/reports/new/${report.player_id}?edit=${report.id}`}
+                      className="flex-1 text-center py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
+                    >
+                      Edit Report
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Floating Compare Button */}
-      {compareMode && selectedForCompare.length >= 2 && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Link
-            href={`/dashboard/compare?players=${selectedForCompare.join(',')}`}
-            className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition"
-          >
-            <BarChart3 className="w-5 h-5" />
-            Compare {selectedForCompare.length} Players
-          </Link>
+            )
+          })}
         </div>
       )}
     </div>

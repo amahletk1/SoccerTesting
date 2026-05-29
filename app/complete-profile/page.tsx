@@ -27,6 +27,29 @@ export default function CompleteProfilePage() {
     }
   }, [])
 
+  // Helper function to send notification to all admins
+  const notifyAllAdmins = async (subject: string, message: string) => {
+    const { data: admins } = await supabase
+      .from('admins')
+      .select('user_id, email')
+
+    if (admins && admins.length > 0) {
+      for (const admin of admins) {
+        await supabase
+          .from('email_notifications')
+          .insert({
+            user_id: admin.user_id,
+            recipient_email: admin.email,
+            recipient_type: 'admin',
+            subject: subject,
+            message: message,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          })
+      }
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -35,75 +58,233 @@ export default function CompleteProfilePage() {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
+      setError('User not found. Please login again.')
       router.push('/login')
       return
     }
 
+    // ========== PLAYER REGISTRATION ==========
     if (role === 'player') {
-      const { error } = await supabase
+      const { data: existingPlayer } = await supabase
         .from('players')
-        .update({
-          name: name,
-          age: parseInt(age),
-          position: position,
-          nationality: nationality,
-          height_cm: height ? parseInt(height) : null,
-          weight_kg: weight ? parseInt(weight) : null,
-          status: 'pending'
-        })
+        .select('id')
         .eq('user_id', user.id)
+        .maybeSingle()
 
-      if (error) {
-        setError(error.message)
-        setLoading(false)
+      let result
+      if (existingPlayer) {
+        result = await supabase
+          .from('players')
+          .update({
+            name: name,
+            age: parseInt(age) || null,
+            position: position,
+            nationality: nationality || null,
+            height_cm: height ? parseInt(height) : null,
+            weight_kg: weight ? parseInt(weight) : null,
+            status: 'pending'
+          })
+          .eq('user_id', user.id)
       } else {
-        alert('Player profile submitted! Waiting for admin approval.')
-        router.push('/dashboard')
+        result = await supabase
+          .from('players')
+          .insert([{
+            user_id: user.id,
+            name: name,
+            age: parseInt(age) || null,
+            position: position,
+            nationality: nationality || null,
+            height_cm: height ? parseInt(height) : null,
+            weight_kg: weight ? parseInt(weight) : null,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          }])
       }
-    } else if (role === 'agent') {
-      const { error } = await supabase
-        .from('agents')
-        .update({
-          name: name,
-          agency: agency || null,
-        })
-        .eq('user_id', user.id)
 
-      if (error) {
-        setError(error.message)
+      if (result.error) {
+        setError('Failed to save profile: ' + result.error.message)
         setLoading(false)
-      } else {
-        alert('Agent profile created!')
-        router.push('/dashboard')
-      }
-    } else if (role === 'scout') {
-      console.log('Saving scout profile for user:', user.id)
-      console.log('Name:', name, 'Club:', clubName)
-      
-      // Try to insert/update scout profile
-      const { data, error } = await supabase
-        .from('scouts')
-        .upsert({
-          user_id: user.id,
-          name: name,
-          club_name: clubName || null,
-        })
-        .select()
-
-      console.log('Upsert result:', { data, error })
-
-      if (error) {
-        setError(error.message)
-        console.error('Scout save error:', error)
-        setLoading(false)
-      } else {
-        console.log('Scout saved successfully!', data)
-        alert('Scout profile created!')
-        // Direct navigation
-        window.location.href = '/dashboard/scout'
         return
       }
+
+      // Send notification to PLAYER
+      await supabase
+        .from('email_notifications')
+        .insert({
+          user_id: user.id,
+          recipient_email: user.email,
+          recipient_type: 'player',
+          subject: 'Profile Submitted for Approval',
+          message: `Dear ${name},\n\nThank you for completing your profile on PlayerFynder!\n\nYour profile has been submitted and is pending admin approval. You will be notified once approved.\n\nBest regards,\nPlayerFynder Team`,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        })
+
+      // Send notification to ALL ADMINS
+      await notifyAllAdmins(
+        'New Player Registration - Pending Approval',
+        `A new player "${name}" (${user.email}) has registered and needs approval.\n\nPlease review in the Admin Panel.`
+      )
+
+      alert('Player profile submitted! Waiting for admin approval.')
+      router.push('/dashboard')
     }
+
+    // ========== AGENT REGISTRATION ==========
+    else if (role === 'agent') {
+      const { data: existingAgent } = await supabase
+        .from('agents')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      let result
+      if (existingAgent) {
+        result = await supabase
+          .from('agents')
+          .update({
+            name: name,
+            agency: agency || null,
+          })
+          .eq('user_id', user.id)
+      } else {
+        result = await supabase
+          .from('agents')
+          .insert([{
+            user_id: user.id,
+            name: name,
+            agency: agency || null,
+            verification_status: 'pending',
+            created_at: new Date().toISOString()
+          }])
+      }
+
+      if (result.error) {
+        setError('Failed to save agent profile: ' + result.error.message)
+        setLoading(false)
+        return
+      }
+
+      // Send notification to AGENT
+      await supabase
+        .from('email_notifications')
+        .insert({
+          user_id: user.id,
+          recipient_email: user.email,
+          recipient_type: 'agent',
+          subject: 'Agent Profile Created',
+          message: `Dear ${name},\n\nYour agent profile has been created successfully!\n\nYou can now browse players and request engagements.\n\nBest regards,\nPlayerFynder Team`,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        })
+
+      // Send notification to ALL ADMINS
+      await notifyAllAdmins(
+        'New Agent Registration - Pending Verification',
+        `A new agent "${name}" (${user.email}) has registered and needs verification.\n\nAgency: ${agency || 'Independent'}\n\nPlease review in the Admin Panel.`
+      )
+
+      alert('Agent profile created!')
+      router.push('/dashboard')
+    }
+
+    // ========== SCOUT REGISTRATION ==========
+// ========== SCOUT REGISTRATION ==========
+// ========== SCOUT REGISTRATION ==========
+else if (role === 'scout') {
+  console.log('=== SCOUT REGISTRATION START ===');
+  console.log('User ID:', user.id);
+  console.log('User Email:', user.email);
+  console.log('Name:', name);
+  console.log('Club Name:', clubName);
+
+  const { data: existingScout, error: checkError } = await supabase
+    .from('scouts')
+    .select('id')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  console.log('Existing scout:', existingScout);
+  console.log('Check error:', checkError);
+
+  let result
+  if (existingScout) {
+    console.log('Updating existing scout...');
+    result = await supabase
+      .from('scouts')
+      .update({
+        name: name,
+        club_name: clubName || null,
+      })
+      .eq('user_id', user.id)
+  } else {
+    console.log('Inserting new scout...');
+    result = await supabase
+      .from('scouts')
+      .insert([{
+        user_id: user.id,
+        name: name,
+        club_name: clubName || null,
+        created_at: new Date().toISOString()
+      }])
+  }
+
+  console.log('Insert/Update result:', result);
+  console.log('Error:', result.error);
+
+  if (result.error) {
+    console.error('SCOUT SAVE ERROR:', result.error);
+    setError('Failed to save scout profile: ' + result.error.message)
+    setLoading(false)
+    return
+  }
+
+  console.log('Scout saved successfully!');
+
+  // Send notification to SCOUT
+  const scoutNotif = await supabase
+    .from('email_notifications')
+    .insert({
+      user_id: user.id,
+      recipient_email: user.email,
+      recipient_type: 'scout',
+      subject: 'Scout Profile Created',
+      message: `Dear ${name},\n\nYour scout profile has been created successfully!\n\nBest regards,\nPlayerFynder Team`,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    })
+  
+  console.log('Scout notification result:', scoutNotif);
+
+  // Send notification to ALL ADMINS
+  const { data: admins } = await supabase
+    .from('admins')
+    .select('user_id, email')
+
+  console.log('Admins found:', admins);
+
+  if (admins && admins.length > 0) {
+    for (const admin of admins) {
+      const adminNotif = await supabase
+        .from('email_notifications')
+        .insert({
+          user_id: admin.user_id,
+          recipient_email: admin.email,
+          recipient_type: 'admin',
+          subject: 'New Scout Registration',
+          message: `A new scout "${name}" (${user.email}) has registered.\n\nClub: ${clubName || 'Independent'}`,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        })
+      console.log(`Admin notification for ${admin.email}:`, adminNotif);
+    }
+  }
+
+  alert('Scout profile created!')
+  window.location.href = '/dashboard/scout'
+  return
+}
+
     setLoading(false)
   }
 

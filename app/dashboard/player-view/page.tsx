@@ -6,13 +6,17 @@ import { useRouter } from 'next/navigation'
 import { 
   MapPin, Calendar, TrendingUp, Award, Heart, Eye, 
   CheckCircle, Video, User, Trophy, Activity, 
-  Share2, MessageCircle, ThumbsUp, Star, Users
+  Share2, MessageCircle, ThumbsUp, Briefcase, DollarSign
 } from 'lucide-react'
 
 export default function PlayerViewPage() {
   const [profile, setProfile] = useState<any>(null)
   const [stats, setStats] = useState<any>(null)
+  const [seasonStats, setSeasonStats] = useState<any[]>([])
+  const [careerHistory, setCareerHistory] = useState<any[]>([])
   const [media, setMedia] = useState<any[]>([])
+  const [achievements, setAchievements] = useState<string[]>([])
+  const [performanceRatings, setPerformanceRatings] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
   const supabase = createClient()
@@ -31,7 +35,7 @@ export default function PlayerViewPage() {
     // Get player profile
     const { data: player } = await supabase
       .from('players')
-      .select('*, player_stats(*)')
+      .select('*')
       .eq('user_id', user.id)
       .single()
 
@@ -41,7 +45,34 @@ export default function PlayerViewPage() {
     }
 
     setProfile(player)
-    setStats(player.player_stats?.[0])
+    
+    // Load achievements from profile
+    if (player.achievements && Array.isArray(player.achievements)) {
+      setAchievements(player.achievements)
+    }
+    
+    // Load performance ratings from profile
+    if (player.performance_ratings) {
+      setPerformanceRatings(player.performance_ratings)
+    }
+
+    // Get season stats
+    const { data: seasonData } = await supabase
+      .from('season_stats')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('season', { ascending: false })
+    
+    if (seasonData) setSeasonStats(seasonData)
+
+    // Get career history
+    const { data: careerData } = await supabase
+      .from('career_history')
+      .select('*')
+      .eq('player_id', player.id)
+      .order('start_date', { ascending: false })
+    
+    if (careerData) setCareerHistory(careerData)
 
     // Get player media (videos and images)
     const { data: mediaData } = await supabase
@@ -64,7 +95,12 @@ export default function PlayerViewPage() {
   }
 
   // Separate profile picture from other media
-  const otherMedia = media.filter(m => !m.url.includes('profile'))
+  const otherMedia = media.filter(m => !m.url?.includes('profile'))
+
+  // Calculate total stats from all seasons
+  const totalGoals = seasonStats.reduce((sum, stat) => sum + (stat.goals || 0), 0)
+  const totalAssists = seasonStats.reduce((sum, stat) => sum + (stat.assists || 0), 0)
+  const totalAppearances = seasonStats.reduce((sum, stat) => sum + (stat.appearances || 0), 0)
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -93,7 +129,7 @@ export default function PlayerViewPage() {
 
           {/* Player Info */}
           <div className="text-center md:text-left text-white">
-            <h1 className="text-3xl md:text-4xl font-bold">{profile?.name}</h1>
+            <h1 className="text-3xl md:text-4xl font-bold">{profile?.name || 'Player Name'}</h1>
             <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2 text-white/80">
               <span className="flex items-center gap-1">
                 <MapPin className="w-4 h-4" />
@@ -125,22 +161,22 @@ export default function PlayerViewPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
         <div className="bg-white rounded-xl shadow-lg p-4 text-center border-b-4 border-red-500">
           <TrendingUp className="w-8 h-8 text-red-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-900">{stats?.matches_played || 0}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalAppearances || 0}</p>
           <p className="text-xs text-gray-500">Matches Played</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center border-b-4 border-yellow-500">
           <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-900">{stats?.goals || 0}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalGoals || 0}</p>
           <p className="text-xs text-gray-500">Goals Scored</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center border-b-4 border-blue-500">
           <Heart className="w-8 h-8 text-blue-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-900">{stats?.assists || 0}</p>
+          <p className="text-2xl font-bold text-gray-900">{totalAssists || 0}</p>
           <p className="text-xs text-gray-500">Assists</p>
         </div>
         <div className="bg-white rounded-xl shadow-lg p-4 text-center border-b-4 border-purple-500">
           <Eye className="w-8 h-8 text-purple-500 mx-auto mb-2" />
-          <p className="text-2xl font-bold text-gray-900">0</p>
+          <p className="text-2xl font-bold text-gray-900">{profile?.views_count || 0}</p>
           <p className="text-xs text-gray-500">Profile Views</p>
         </div>
       </div>
@@ -158,19 +194,23 @@ export default function PlayerViewPage() {
             <div className="space-y-3">
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-500">Full Name</span>
-                <span className="font-medium">{profile?.name}</span>
+                <span className="font-medium">{profile?.name || '-'}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-500">Position</span>
-                <span className="font-medium">{profile?.position}</span>
+                <span className="font-medium">{profile?.position || '-'}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-500">Age</span>
-                <span className="font-medium">{profile?.age} years</span>
+                <span className="font-medium">{profile?.age ? `${profile.age} years` : '-'}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-500">Nationality</span>
-                <span className="font-medium">{profile?.nationality}</span>
+                <span className="font-medium">{profile?.nationality || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">Preferred Foot</span>
+                <span className="font-medium">{profile?.preferred_foot || '-'}</span>
               </div>
               <div className="flex justify-between py-2 border-b">
                 <span className="text-gray-500">Height / Weight</span>
@@ -179,143 +219,150 @@ export default function PlayerViewPage() {
                 </span>
               </div>
               <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-500">Status</span>
-                <span className="font-medium text-green-600">Approved</span>
+                <span className="text-gray-500">Jersey Number</span>
+                <span className="font-medium">{profile?.jersey_number || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">Current Club</span>
+                <span className="font-medium">{profile?.current_club || '-'}</span>
+              </div>
+              <div className="flex justify-between py-2 border-b">
+                <span className="text-gray-500">Market Value</span>
+                <span className="font-medium">{profile?.market_value ? `€${(profile.market_value / 1000000).toFixed(1)}M` : '-'}</span>
               </div>
             </div>
           </div>
 
           {/* Performance Ratings */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-green-600" />
-              Performance Rating
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Pace</span>
-                  <span className="font-semibold">85/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-500 rounded-full h-2" style={{ width: '85%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Shooting</span>
-                  <span className="font-semibold">82/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-500 rounded-full h-2" style={{ width: '82%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Passing</span>
-                  <span className="font-semibold">78/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-500 rounded-full h-2" style={{ width: '78%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Dribbling</span>
-                  <span className="font-semibold">88/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-500 rounded-full h-2" style={{ width: '88%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Defending</span>
-                  <span className="font-semibold">45/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-500 rounded-full h-2" style={{ width: '45%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>Physical</span>
-                  <span className="font-semibold">80/100</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-red-500 rounded-full h-2" style={{ width: '80%' }}></div>
-                </div>
+          {performanceRatings && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-green-600" />
+                Performance Rating
+              </h2>
+              <div className="space-y-4">
+                {Object.entries(performanceRatings).map(([key, value]: [string, any]) => (
+                  <div key={key}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="capitalize">{key}</span>
+                      <span className="font-semibold">{value}/100</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-red-500 rounded-full h-2" style={{ width: `${value}%` }}></div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
 
           {/* Achievements */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
-              <Award className="w-5 h-5 text-yellow-600" />
-              Achievements
-            </h2>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Trophy className="w-4 h-4 text-yellow-500" />
-                <span>Top Scorer - Youth League 2023</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Star className="w-4 h-4 text-yellow-500" />
-                <span>Player of the Tournament - Regional Cup 2024</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Users className="w-4 h-4 text-blue-500" />
-                <span>Captain - National U20 Team</span>
+          {achievements.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <Award className="w-5 h-5 text-yellow-600" />
+                Achievements
+              </h2>
+              <div className="space-y-2">
+                {achievements.map((achievement, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm">
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                    <span>{achievement}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Bio */}
+          {profile?.bio && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                <User className="w-5 h-5 text-blue-600" />
+                Biography
+              </h2>
+              <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
+            </div>
+          )}
         </div>
 
-        {/* Right Column - Media Gallery */}
+        {/* Right Column - Stats and Media */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Career Statistics Table */}
+          {/* Season Statistics Table */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-blue-600" />
-              Career Statistics
+              Season Statistics
             </h2>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-4 py-2 text-left text-sm font-semibold">Season</th>
-                    <th className="px-4 py-2 text-center text-sm font-semibold">Apps</th>
-                    <th className="px-4 py-2 text-center text-sm font-semibold">Goals</th>
-                    <th className="px-4 py-2 text-center text-sm font-semibold">Assists</th>
-                    <th className="px-4 py-2 text-center text-sm font-semibold">Rating</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr className="border-b">
-                    <td className="px-4 py-3 text-sm">2024/25</td>
-                    <td className="px-4 py-3 text-center text-sm">{stats?.matches_played || 0}</td>
-                    <td className="px-4 py-3 text-center text-sm">{stats?.goals || 0}</td>
-                    <td className="px-4 py-3 text-center text-sm">{stats?.assists || 0}</td>
-                    <td className="px-4 py-3 text-center text-sm">7.8</td>
-                  </tr>
-                  <tr className="border-b">
-                    <td className="px-4 py-3 text-sm">2023/24</td>
-                    <td className="px-4 py-3 text-center text-sm">24</td>
-                    <td className="px-4 py-3 text-center text-sm">12</td>
-                    <td className="px-4 py-3 text-center text-sm">8</td>
-                    <td className="px-4 py-3 text-center text-sm">7.5</td>
-                  </tr>
-                  <tr>
-                    <td className="px-4 py-3 text-sm">2022/23</td>
-                    <td className="px-4 py-3 text-center text-sm">18</td>
-                    <td className="px-4 py-3 text-center text-sm">7</td>
-                    <td className="px-4 py-3 text-center text-sm">5</td>
-                    <td className="px-4 py-3 text-center text-sm">7.2</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {seasonStats.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No season statistics added yet.</p>
+                <p className="text-sm mt-1">Go to Edit Profile → Season Stats to add your performance data.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-3 py-2 text-left text-sm font-semibold">Season</th>
+                      <th className="px-3 py-2 text-center text-sm font-semibold">Competition</th>
+                      <th className="px-3 py-2 text-center text-sm font-semibold">Club</th>
+                      <th className="px-3 py-2 text-center text-sm font-semibold">Apps</th>
+                      <th className="px-3 py-2 text-center text-sm font-semibold">Goals</th>
+                      <th className="px-3 py-2 text-center text-sm font-semibold">Assists</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {seasonStats.map((stat, idx) => (
+                      <tr key={stat.id} className={idx !== seasonStats.length - 1 ? 'border-b' : ''}>
+                        <td className="px-3 py-2 text-sm font-medium">{stat.season}</td>
+                        <td className="px-3 py-2 text-center text-sm">{stat.competition || '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm">{stat.club || '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm">{stat.appearances || 0}</td>
+                        <td className="px-3 py-2 text-center text-sm text-green-600 font-semibold">{stat.goals || 0}</td>
+                        <td className="px-3 py-2 text-center text-sm text-blue-600 font-semibold">{stat.assists || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Career History */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-gray-600" />
+              Career History
+            </h2>
+            {careerHistory.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <p>No career history added yet.</p>
+                <p className="text-sm mt-1">Go to Edit Profile → Career History to add your club history.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {careerHistory.map((entry) => (
+                  <div key={entry.id} className="flex gap-4 items-start p-3 bg-gray-50 rounded-lg">
+                    <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold">
+                      {entry.club_name?.charAt(0) || 'C'}
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-gray-900">{entry.club_name}</h4>
+                      <p className="text-sm text-gray-500">{entry.league} • {entry.country}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {entry.start_date ? new Date(entry.start_date).getFullYear() : '?'} - {entry.end_date ? new Date(entry.end_date).getFullYear() : 'Present'}
+                      </p>
+                      <div className="flex gap-4 mt-2 text-sm">
+                        <span>{entry.appearances || 0} Apps</span>
+                        <span className="text-green-600">{entry.goals || 0} Goals</span>
+                        <span className="text-blue-600">{entry.assists || 0} Assists</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Media Gallery */}
@@ -328,7 +375,7 @@ export default function PlayerViewPage() {
               <div className="text-center py-12 bg-gray-50 rounded-lg">
                 <Video className="w-16 h-16 text-gray-300 mx-auto mb-3" />
                 <p className="text-gray-500">No highlight videos or images yet</p>
-                <p className="text-sm text-gray-400 mt-1">Check back later for精彩 highlights</p>
+                <p className="text-sm text-gray-400 mt-1">Upload media in your profile page</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,17 +390,19 @@ export default function PlayerViewPage() {
                     ) : (
                       <img
                         src={item.url}
-                        alt="Player highlight"
+                        alt={item.title || "Player highlight"}
                         className="w-full h-48 object-cover rounded-lg"
                       />
+                    )}
+                    {item.title && (
+                      <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs">
+                        {item.title}
+                      </div>
                     )}
                     <div className="absolute inset-0 bg-black/50 rounded-lg opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-4">
                       <ThumbsUp className="w-6 h-6 text-white cursor-pointer hover:text-blue-400" />
                       <MessageCircle className="w-6 h-6 text-white cursor-pointer hover:text-green-400" />
                       <Share2 className="w-6 h-6 text-white cursor-pointer hover:text-purple-400" />
-                    </div>
-                    <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
-                      {item.type === 'video' ? '🎥 Highlight' : '📸 Action Shot'}
                     </div>
                   </div>
                 ))}

@@ -4,13 +4,14 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Chat from '@/app/components/Chat'
-import { MessageSquare, Users, UserCircle, Clock } from 'lucide-react'
+import { MessageSquare, Users, UserCircle, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react'
 
 export default function MessagesPage() {
   const [conversations, setConversations] = useState<any[]>([])
   const [selectedConversation, setSelectedConversation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [userType, setUserType] = useState<string>('')
+  const [userId, setUserId] = useState<string>('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -33,11 +34,11 @@ export default function MessagesPage() {
       .single()
     
     let type = ''
-    let userId = ''
+    let currentUserId = ''
     
     if (agent) {
       type = 'agent'
-      userId = agent.id
+      currentUserId = agent.id
     } else {
       const { data: player } = await supabase
         .from('players')
@@ -46,31 +47,66 @@ export default function MessagesPage() {
         .single()
       if (player) {
         type = 'player'
-        userId = player.id
+        currentUserId = player.id
       }
     }
     setUserType(type)
+    setUserId(currentUserId)
 
-    // Fetch conversations
+    // Fetch conversations with engagement status
     let query = supabase
       .from('conversations')
       .select(`
         *,
-        agent:agents(name, user_id),
-        player:players(name)
+        agent:agents(id, name, agency_name, profile_picture),
+        player:players(id, name, position, profile_picture),
+        engagement:engagements(status, restriction_level)
       `)
       .order('last_message_at', { ascending: false })
     
-    if (type === 'agent') {
-      query = query.eq('agent_id', userId)
-    } else if (type === 'player') {
-      query = query.eq('player_id', userId)
-    }
+if (type === 'agent') {
+  query = query.eq('agent_id', currentUserId)
+} else if (type === 'player') {
+  query = query.eq('player_id', currentUserId)
+}
     
     const { data } = await query
     
-    if (data) setConversations(data)
+    if (data) {
+      // Get last message for each conversation
+      const convWithLastMsg = await Promise.all(
+        data.map(async (conv) => {
+          const { data: lastMsg } = await supabase
+            .from('messages')
+            .select('message, created_at, sender_type')
+            .eq('conversation_id', conv.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+          
+          return {
+            ...conv,
+            last_message: lastMsg?.[0]?.message || 'No messages yet',
+            last_message_time: lastMsg?.[0]?.created_at,
+            last_message_sender: lastMsg?.[0]?.sender_type
+          }
+        })
+      )
+      setConversations(convWithLastMsg)
+    }
     setLoading(false)
+  }
+
+  const getEngagementStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return { text: 'Active', color: 'bg-green-100 text-green-700', icon: CheckCircle }
+      case 'pending':
+        return { text: 'Pending Admin Approval', color: 'bg-yellow-100 text-yellow-700', icon: Clock }
+      case 'rejected':
+        return { text: 'Rejected', color: 'bg-red-100 text-red-700', icon: XCircle }
+      default:
+        return { text: 'Unknown', color: 'bg-gray-100 text-gray-700', icon: AlertCircle }
+    }
   }
 
   if (loading) {
@@ -101,44 +137,71 @@ export default function MessagesPage() {
               <div className="p-8 text-center text-gray-500">
                 <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
                 <p>No conversations yet</p>
-                <p className="text-sm">Connect with players or agents to start chatting</p>
+                <p className="text-sm">When agents contact you, they'll appear here</p>
               </div>
             ) : (
-              conversations.map((conv) => (
-                <button
-                  key={conv.id}
-                  onClick={() => setSelectedConversation(conv)}
-                  className={`w-full p-4 text-left hover:bg-gray-50 transition ${
-                    selectedConversation?.id === conv.id ? 'bg-red-50' : ''
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-red-100 to-blue-100 rounded-full flex items-center justify-center">
-                        {userType === 'agent' ? (
-                          <Users className="w-5 h-5 text-blue-600" />
-                        ) : (
-                          <UserCircle className="w-5 h-5 text-red-600" />
-                        )}
+              conversations.map((conv) => {
+                const otherPerson = userType === 'agent' ? conv.player : conv.agent
+                const statusBadge = getEngagementStatusBadge(conv.engagement?.status)
+                const StatusIcon = statusBadge.icon
+                
+                return (
+                  <button
+                    key={conv.id}
+                    onClick={() => setSelectedConversation(conv)}
+                    className={`w-full p-4 text-left hover:bg-gray-50 transition ${
+                      selectedConversation?.id === conv.id ? 'bg-red-50' : ''
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-red-100 to-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                          {otherPerson?.profile_picture ? (
+                            <img 
+                              src={otherPerson.profile_picture} 
+                              alt={otherPerson.name}
+                              className="w-10 h-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            userType === 'agent' ? (
+                              <Users className="w-5 h-5 text-blue-600" />
+                            ) : (
+                              <UserCircle className="w-5 h-5 text-red-600" />
+                            )
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold text-gray-900 truncate">
+                              {otherPerson?.name || 'Unknown'}
+                            </p>
+                            <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full ${statusBadge.color}`}>
+                              <StatusIcon className="w-3 h-3" />
+                              {statusBadge.text}
+                            </span>
+                          </div>
+                          {userType === 'agent' && otherPerson?.position && (
+                            <p className="text-xs text-gray-500">{otherPerson.position}</p>
+                          )}
+                          {userType === 'player' && conv.agent?.agency_name && (
+                            <p className="text-xs text-gray-500">{conv.agent.agency_name}</p>
+                          )}
+                          <p className="text-sm text-gray-500 truncate mt-1">
+                            {conv.last_message_sender === userType ? 'You: ' : ''}
+                            {conv.last_message}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold text-gray-900">
-                          {userType === 'agent' ? conv.player?.name : conv.agent?.name}
-                        </p>
-                        <p className="text-sm text-gray-500 truncate max-w-[150px]">
-                          {conv.last_message || 'No messages yet'}
-                        </p>
+                      <div className="flex flex-col items-end ml-2 flex-shrink-0">
+                        <Clock className="w-3 h-3 text-gray-400" />
+                        <span className="text-xs text-gray-400 mt-1 whitespace-nowrap">
+                          {conv.last_message_time ? new Date(conv.last_message_time).toLocaleDateString() : ''}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex flex-col items-end">
-                      <Clock className="w-3 h-3 text-gray-400" />
-                      <span className="text-xs text-gray-400 mt-1">
-                        {new Date(conv.last_message_at).toLocaleDateString()}
-                      </span>
-                    </div>
-                  </div>
-                </button>
-              ))
+                  </button>
+                )
+              })
             )}
           </div>
         </div>
@@ -148,9 +211,14 @@ export default function MessagesPage() {
           {selectedConversation ? (
             <Chat
               conversationId={selectedConversation.id}
-              agentId={selectedConversation.agent_id}
-              playerId={selectedConversation.player_id}
+agentId={selectedConversation.agent_id}
+playerId={selectedConversation.player_id}
+              currentUserId={userId}
+              userType={userType}
+              engagementStatus={selectedConversation.engagement?.status}
+              restrictionLevel={selectedConversation.engagement?.restriction_level}
               onClose={() => setSelectedConversation(null)}
+              onMessageSent={() => fetchConversations()}
             />
           ) : (
             <div className="bg-white rounded-xl shadow p-12 text-center">

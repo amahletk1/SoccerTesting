@@ -5,7 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, BarChart3, Target, Eye, Edit3
+  Home, Users, Star, LogOut, UserCircle, ShieldCheck, Bell, Search, 
+  BarChart3, Target, Eye, Edit3, MessageSquare, FileText
 } from 'lucide-react'
 
 export default function DashboardLayout({
@@ -185,7 +186,7 @@ export default function DashboardLayout({
             )}
           </Link>
 
-          {/* Scout Links */}
+          {/* ========== SCOUT LINKS ========== */}
           {userRole === 'scout' && (
             <>
               <Link 
@@ -196,16 +197,30 @@ export default function DashboardLayout({
                 Scouting
               </Link>
               <Link 
+                href="/dashboard/scouting/reports" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"
+              >
+                <FileText className="w-5 h-5 mr-3" />
+                My Reports
+              </Link>
+              <Link 
                 href="/dashboard/players" 
                 className="flex items-center px-6 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"
               >
                 <Users className="w-5 h-5 mr-3" />
                 Browse Players
               </Link>
+              <Link 
+                href="/dashboard/agents" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-green-50 hover:text-green-600 transition"
+              >
+                <Users className="w-5 h-5 mr-3" />
+                Agents Directory
+              </Link>
             </>
           )}
 
-          {/* Admin Links */}
+          {/* ========== ADMIN LINKS ========== */}
           {userRole === 'admin' && (
             <>
               <Link 
@@ -214,6 +229,20 @@ export default function DashboardLayout({
               >
                 <BarChart3 className="w-5 h-5 mr-3" />
                 Analytics
+              </Link>
+              <Link 
+                href="/dashboard/admin/conversations" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <MessageSquare className="w-5 h-5 mr-3" />
+                Conversation Monitor
+              </Link>
+              <Link 
+                href="/dashboard/admin/reports" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <FileText className="w-5 h-5 mr-3" />
+                Scouting Reports
               </Link>
               <Link 
                 href="/dashboard/admin" 
@@ -225,15 +254,22 @@ export default function DashboardLayout({
             </>
           )}
           
-          {/* Agent Links */}
+          {/* ========== AGENT LINKS ========== */}
           {userRole === 'agent' && (
             <>
               <Link 
-                href="/dashboard/scouting" 
-                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+                href="/dashboard/agent/profile" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border-l-4 border-blue-500 bg-blue-50/30"
               >
-                <Search className="w-5 h-5 mr-3" />
-                Scouting
+                <UserCircle className="w-5 h-5 mr-3" />
+                My Profile
+              </Link>
+              <Link 
+                href="/dashboard/agent/messages" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+              >
+                <MessageSquare className="w-5 h-5 mr-3" />
+                Messages
               </Link>
               <Link 
                 href="/dashboard/players" 
@@ -249,10 +285,17 @@ export default function DashboardLayout({
                 <Star className="w-5 h-5 mr-3" />
                 Shortlist
               </Link>
+              <Link 
+                href="/dashboard/agents" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
+              >
+                <Users className="w-5 h-5 mr-3" />
+                Agents Directory
+              </Link>
             </>
           )}
 
-          {/* Player Links */}
+          {/* ========== PLAYER LINKS ========== */}
           {userRole === 'player' && (
             <>
               <Link 
@@ -268,6 +311,20 @@ export default function DashboardLayout({
               >
                 <Edit3 className="w-5 h-5 mr-3" />
                 Edit Profile
+              </Link>
+              <Link 
+                href="/dashboard/player/messages" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <MessageSquare className="w-5 h-5 mr-3" />
+                Messages
+              </Link>
+              <Link 
+                href="/dashboard/agents" 
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
+              >
+                <Users className="w-5 h-5 mr-3" />
+                Find Agents
               </Link>
             </>
           )}

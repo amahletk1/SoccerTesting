@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Send, UserCircle, MessageSquare, CheckCheck } from 'lucide-react'
+import { Send, UserCircle, MessageSquare, CheckCheck, AlertCircle, Shield, Clock, XCircle } from 'lucide-react'
+import { detectRestrictedContent, getRestrictedTypeLabel } from '@/lib/message-filter'
 
 interface Message {
   id: string
@@ -11,46 +12,72 @@ interface Message {
   sender_id: string
   message: string
   is_read: boolean
+  has_restricted_content?: boolean
+  restricted_types?: string[]
   created_at: string
-}
-
-interface Conversation {
-  id: string
-  agent_id: string
-  player_id: string
-  last_message: string
-  last_message_at: string
-  agent?: { name: string; user_id: string }
-  player?: { name: string; user_id: string }
 }
 
 interface ChatProps {
   conversationId?: string
   agentId?: string
   playerId?: string
+  currentUserId?: string
+  userType?: string
+  engagementStatus?: string
+  restrictionLevel?: string
   onClose?: () => void
+  onMessageSent?: () => void
 }
 
-export default function Chat({ conversationId, agentId, playerId, onClose }: ChatProps) {
+export default function Chat({ 
+  conversationId, 
+  agentId, 
+  playerId, 
+  currentUserId: propCurrentUserId,
+  userType: propUserType,
+  engagementStatus: propEngagementStatus,
+  restrictionLevel: propRestrictionLevel,
+  onClose,
+  onMessageSent
+}: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
-  const [currentUserId, setCurrentUserId] = useState<string>('')
-  const [userType, setUserType] = useState<'agent' | 'player' | null>(null)
+  const [currentUserId, setCurrentUserId] = useState<string>(propCurrentUserId || '')
+  const [userType, setUserType] = useState<'agent' | 'player' | null>(propUserType as any || null)
+  const [engagementStatus, setEngagementStatus] = useState<string>(propEngagementStatus || 'pending')
+  const [restrictionLevel, setRestrictionLevel] = useState<string>(propRestrictionLevel || 'none')
+  const [otherPerson, setOtherPerson] = useState<any>(null)
+  const [actualConversationId, setActualConversationId] = useState<string | null>(conversationId || null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const supabase = createClient()
 
   useEffect(() => {
-    fetchCurrentUser()
+    if (!propCurrentUserId) {
+      fetchCurrentUser()
+    } else {
+      if (actualConversationId || (agentId && playerId)) {
+        fetchMessages()
+        subscribeToMessages()
+      }
+      if (!propEngagementStatus) {
+        fetchEngagementStatus()
+      }
+      fetchOtherPerson()
+    }
   }, [])
 
   useEffect(() => {
-    if (currentUserId && (conversationId || (agentId && playerId))) {
+    if (currentUserId && (actualConversationId || (agentId && playerId))) {
       fetchMessages()
       subscribeToMessages()
+      if (!propEngagementStatus) {
+        fetchEngagementStatus()
+      }
+      fetchOtherPerson()
     }
-  }, [conversationId, agentId, playerId, currentUserId])
+  }, [currentUserId, actualConversationId, agentId, playerId])
 
   useEffect(() => {
     scrollToBottom()
@@ -60,23 +87,37 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
     const { data: { user } } = await supabase.auth.getUser()
     if (user) {
       setCurrentUserId(user.id)
-      // Check if user is agent or player
-      const { data: agent } = await supabase
-        .from('agents')
-        .select('id')
-        .eq('user_id', user.id)
-        .single()
+      const { data: agent } = await supabase.from('agents').select('id').eq('user_id', user.id).single()
       if (agent) {
         setUserType('agent')
       } else {
-        const { data: player } = await supabase
-          .from('players')
-          .select('id')
-          .eq('user_id', user.id)
-          .single()
-        if (player) {
-          setUserType('player')
-        }
+        const { data: player } = await supabase.from('players').select('id').eq('user_id', user.id).single()
+        if (player) setUserType('player')
+      }
+    }
+  }
+
+  const fetchOtherPerson = async () => {
+    if (userType === 'agent' && playerId) {
+      const { data } = await supabase.from('players').select('id, name, position, profile_picture').eq('id', playerId).single()
+      if (data) setOtherPerson(data)
+    } else if (userType === 'player' && agentId) {
+      const { data } = await supabase.from('agents').select('id, name, agency_name, profile_picture').eq('id', agentId).single()
+      if (data) setOtherPerson(data)
+    }
+  }
+
+  const fetchEngagementStatus = async () => {
+    if (!propEngagementStatus && agentId && playerId) {
+      const { data } = await supabase
+        .from('engagements')
+        .select('status, restriction_level')
+        .eq('agent_id', agentId)
+        .eq('player_id', playerId)
+        .single()
+      if (data) {
+        setEngagementStatus(data.status)
+        setRestrictionLevel(data.restriction_level || 'none')
       }
     }
   }
@@ -84,9 +125,8 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
   const fetchMessages = async () => {
     setLoading(true)
     
-    let convId = conversationId
+    let convId = actualConversationId
     
-    // If no conversation ID, create one
     if (!convId && agentId && playerId) {
       const { data: existing } = await supabase
         .from('conversations')
@@ -97,15 +137,16 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
       
       if (existing) {
         convId = existing.id
-      } else {
-        const { data: newConv, error: createError } = await supabase
+        setActualConversationId(convId)
+      } else if (engagementStatus === 'approved') {
+        const { data: newConv } = await supabase
           .from('conversations')
-          .insert({ agent_id: agentId, player_id: playerId })
+          .insert({ agent_id: agentId, player_id: playerId, is_active: true })
           .select()
           .single()
-        
-        if (newConv && !createError) {
+        if (newConv) {
           convId = newConv.id
+          setActualConversationId(convId)
         }
       }
     }
@@ -119,7 +160,6 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
       
       if (data) setMessages(data)
       
-      // Mark messages as read
       await supabase
         .from('messages')
         .update({ is_read: true })
@@ -133,34 +173,36 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
   const subscribeToMessages = () => {
     const subscription = supabase
       .channel('messages')
-      .on('postgres_changes', 
-        { event: 'INSERT', schema: 'public', table: 'messages' },
-        (payload) => {
-          const newMsg = payload.new as Message
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        const newMsg = payload.new as Message
+        if (newMsg.conversation_id === actualConversationId) {
           setMessages(prev => [...prev, newMsg])
-          
-          // Mark as read if not from current user
           if (newMsg.sender_id !== currentUserId) {
-            supabase
-              .from('messages')
-              .update({ is_read: true })
-              .eq('id', newMsg.id)
+            supabase.from('messages').update({ is_read: true }).eq('id', newMsg.id)
           }
         }
-      )
+      })
       .subscribe()
-
-    return () => {
-      subscription.unsubscribe()
-    }
+    return () => { subscription.unsubscribe() }
   }
 
   const sendMessage = async () => {
     if (!newMessage.trim() || sending) return
     
+    if (engagementStatus !== 'approved') {
+      alert(engagementStatus === 'pending' ? 'Waiting for admin approval...' : 'This engagement was rejected')
+      return
+    }
+    
+    const detection = detectRestrictedContent(newMessage)
+    if (detection.hasRestricted) {
+      alert(`Message blocked: Cannot share ${detection.types.map(t => getRestrictedTypeLabel(t)).join(', ')}`)
+      return
+    }
+    
     setSending(true)
     
-    let convId = conversationId
+    let convId = actualConversationId
     
     if (!convId && agentId && playerId) {
       const { data: existing } = await supabase
@@ -175,38 +217,30 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
       } else {
         const { data: newConv } = await supabase
           .from('conversations')
-          .insert({ agent_id: agentId, player_id: playerId })
+          .insert({ agent_id: agentId, player_id: playerId, is_active: true })
           .select()
           .single()
-        
-        if (newConv) {
-          convId = newConv.id
-          // Update last message
-          await supabase
-            .from('conversations')
-            .update({ last_message: newMessage, last_message_at: new Date().toISOString() })
-            .eq('id', convId)
-        }
+        if (newConv) convId = newConv.id
       }
+      setActualConversationId(convId)
     }
     
     if (convId) {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          conversation_id: convId,
-          sender_type: userType,
-          sender_id: currentUserId,
-          message: newMessage.trim(),
-          is_read: false
-        })
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: convId,
+        sender_type: userType,
+        sender_id: currentUserId,
+        message: newMessage.trim(),
+        is_read: false,
+        has_restricted_content: false,
+        created_at: new Date().toISOString()
+      })
       
       if (!error) {
+        await supabase.from('conversations').update({ last_message: newMessage.trim(), last_message_at: new Date().toISOString() }).eq('id', convId)
         setNewMessage('')
-        await supabase
-          .from('conversations')
-          .update({ last_message: newMessage.trim(), last_message_at: new Date().toISOString() })
-          .eq('id', convId)
+        if (onMessageSent) onMessageSent()
+        await fetchMessages()
       }
     }
     
@@ -217,100 +251,96 @@ export default function Chat({ conversationId, agentId, playerId, onClose }: Cha
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const getSenderName = (message: Message) => {
-    if (message.sender_type === 'agent') return 'Agent'
-    return 'Player'
+  const getStatusBadge = () => {
+    switch (engagementStatus) {
+      case 'approved': return { text: 'Active', color: 'bg-green-100 text-green-700', icon: null }
+      case 'pending': return { text: 'Pending Admin Approval', color: 'bg-yellow-100 text-yellow-700', icon: Clock }
+      case 'rejected': return { text: 'Rejected', color: 'bg-red-100 text-red-700', icon: XCircle }
+      default: return { text: 'Unknown', color: 'bg-gray-100 text-gray-700', icon: AlertCircle }
+    }
   }
+
+  const statusBadge = getStatusBadge()
 
   return (
     <div className="flex flex-col h-full bg-white rounded-xl shadow-lg">
-      {/* Header */}
       <div className="flex items-center justify-between p-4 border-b bg-gradient-to-r from-red-50 to-blue-50 rounded-t-xl">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-5 h-5 text-red-600" />
-          <h3 className="font-semibold text-gray-900">Chat</h3>
+          <h3 className="font-semibold text-gray-900">
+            {userType === 'agent' ? otherPerson?.name || 'Player' : otherPerson?.name || 'Agent'}
+          </h3>
+          {engagementStatus && (
+            <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${statusBadge.color}`}>
+              {statusBadge.icon && <statusBadge.icon className="w-3 h-3" />}
+              {statusBadge.text}
+            </span>
+          )}
         </div>
         {onClose && (
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">✕</button>
         )}
       </div>
 
-      {/* Messages */}
+      {engagementStatus !== 'approved' && (
+        <div className={`p-3 text-sm flex items-center gap-2 ${engagementStatus === 'pending' ? 'bg-yellow-50 text-yellow-700 border-b border-yellow-200' : 'bg-red-50 text-red-700 border-b border-red-200'}`}>
+          {engagementStatus === 'pending' ? <Clock className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          <span>{engagementStatus === 'pending' ? 'Pending admin approval. Messaging disabled.' : 'This engagement was rejected.'}</span>
+        </div>
+      )}
+
+      {engagementStatus === 'approved' && restrictionLevel === 'restricted' && (
+        <div className="p-3 text-sm bg-red-50 text-red-700 border-b border-red-200 flex items-center gap-2">
+          <Shield className="w-4 h-4" />
+          <span>Restricted: No phone numbers, emails, or social media sharing.</span>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[300px] max-h-[400px]">
         {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
-          </div>
+          <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div></div>
         ) : messages.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
             <MessageSquare className="w-12 h-12 mx-auto mb-2 text-gray-300" />
             <p>No messages yet</p>
-            <p className="text-sm">Send a message to start the conversation</p>
+            {engagementStatus === 'approved' && <p className="text-sm">Send a message to start the conversation</p>}
           </div>
         ) : (
-          messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.sender_id === currentUserId ? 'justify-end' : 'justify-start'}`}
-            >
-              <div
-                className={`max-w-[70%] rounded-lg p-3 ${
-                  msg.sender_id === currentUserId
-                    ? 'bg-gradient-to-r from-red-600 to-red-700 text-white'
-                    : 'bg-gray-100 text-gray-900'
-                }`}
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <UserCircle className="w-4 h-4" />
-                  <span className="text-xs font-medium">
-                    {getSenderName(msg)}
-                  </span>
-                </div>
-                <p className="text-sm">{msg.message}</p>
-                <div className="flex justify-end items-center gap-1 mt-1">
-                  <span className="text-xs opacity-70">
-                    {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  {msg.sender_id === currentUserId && (
-                    msg.is_read ? (
-                      <CheckCheck className="w-3 h-3" />
-                    ) : (
-                      <CheckCheck className="w-3 h-3 opacity-50" />
-                    )
-                  )}
+          messages.map((msg) => {
+            const isCurrentUser = msg.sender_id === currentUserId
+            return (
+              <div key={msg.id} className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[70%] rounded-lg p-3 ${isCurrentUser ? 'bg-gradient-to-r from-red-600 to-red-700 text-white' : 'bg-gray-100 text-gray-900'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <UserCircle className="w-4 h-4" />
+                    <span className="text-xs font-medium">{isCurrentUser ? 'You' : (userType === 'agent' ? otherPerson?.name : otherPerson?.name)}</span>
+                  </div>
+                  <p className="text-sm break-words">{msg.message}</p>
+                  <div className="flex justify-end items-center gap-1 mt-1">
+                    <span className="text-xs opacity-70">{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {isCurrentUser && (msg.is_read ? <CheckCheck className="w-3 h-3" /> : <CheckCheck className="w-3 h-3 opacity-50" />)}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div className="p-4 border-t">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Type a message..."
-            className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-          />
-          <button
-            onClick={sendMessage}
-            disabled={sending || !newMessage.trim()}
-            className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition disabled:opacity-50"
-          >
-            <Send className="w-5 h-5" />
-          </button>
+      {engagementStatus === 'approved' ? (
+        <div className="p-4 border-t">
+          <div className="flex gap-2">
+            <input type="text" value={newMessage} onChange={(e) => setNewMessage(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && sendMessage()} placeholder="Type a message... (Phone/email blocked)" className="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-red-500" disabled={sending} />
+            <button onClick={sendMessage} disabled={sending || !newMessage.trim()} className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition disabled:opacity-50"><Send className="w-5 h-5" /></button>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">⚠️ Personal contact info is automatically blocked for your safety.</p>
         </div>
-      </div>
+      ) : engagementStatus === 'pending' ? (
+        <div className="p-4 border-t bg-gray-50"><div className="text-center text-sm text-gray-500"><Clock className="w-4 h-4 mx-auto mb-1" />Waiting for admin approval...</div></div>
+      ) : (
+        <div className="p-4 border-t bg-gray-50"><div className="text-center text-sm text-red-500"><XCircle className="w-4 h-4 mx-auto mb-1" />This engagement was rejected.</div></div>
+      )}
     </div>
   )
 }
