@@ -5,8 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
-  FileText, Eye, Star, Calendar, TrendingUp, 
-  Target, Activity, Award, ChevronRight
+  Search, Filter, Eye, Star, TrendingUp, Users,
+  Calendar, MapPin, Target, BarChart3, ArrowUpDown,
+  UserPlus, Briefcase, Activity, Zap, Flame, XCircle
 } from 'lucide-react'
 
 export default function MyReportsPage() {
