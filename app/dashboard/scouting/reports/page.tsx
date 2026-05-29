@@ -7,13 +7,14 @@ import Link from 'next/link'
 import { 
   Search, Filter, Eye, Star, TrendingUp, Users,
   Calendar, MapPin, Target, BarChart3, ArrowUpDown,
-  UserPlus, Briefcase, Activity, Zap, Flame, FileText,  Award, ChevronRight, XCircle
+  UserPlus, Briefcase, Activity, Zap, Flame, XCircle,
+  FileText, CheckCircle, AlertCircle, MessageSquare, Heart, Trophy
 } from 'lucide-react'
-
 
 export default function ScoutingPage() {
   const [players, setPlayers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [reports, setReports] = useState<any[]>([])
   const [hotProspects, setHotProspects] = useState<any[]>([])
   const [filters, setFilters] = useState({
     position: '',
@@ -25,17 +26,45 @@ export default function ScoutingPage() {
   const [showFilters, setShowFilters] = useState(false)
   const [compareMode, setCompareMode] = useState(false)
   const [selectedForCompare, setSelectedForCompare] = useState<string[]>([])
+  const [scoutId, setScoutId] = useState<string | null>(null)
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
-    fetchPlayers()
-    fetchHotProspects()
+    fetchScoutAndPlayers()
   }, [filters])
 
-  const fetchPlayers = async () => {
+  const fetchScoutAndPlayers = async () => {
     setLoading(true)
     
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/login')
+      return
+    }
+
+    // Get scout ID
+    const { data: scout } = await supabase
+      .from('scouts')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+
+    if (scout) {
+      setScoutId(scout.id)
+      
+      // Fetch scout's reports
+      const { data: reportsData } = await supabase
+        .from('scouting_reports')
+        .select('player_id')
+        .eq('scout_id', scout.id)
+      
+      if (reportsData) {
+        setReports(reportsData)
+      }
+    }
+
+    // Fetch players
     let query = supabase
       .from('players')
       .select('*, player_stats(*)')
@@ -69,18 +98,22 @@ export default function ScoutingPage() {
     } else {
       setPlayers(data || [])
     }
-    setLoading(false)
-  }
-
-  const fetchHotProspects = async () => {
-    const { data } = await supabase
+    
+    // Fetch hot prospects
+    const { data: hotData } = await supabase
       .from('players')
       .select('*, player_stats(*)')
       .eq('status', 'approved')
       .order('created_at', { ascending: false })
       .limit(3)
     
-    if (data) setHotProspects(data)
+    if (hotData) setHotProspects(hotData)
+    
+    setLoading(false)
+  }
+
+  const hasReport = (playerId: string) => {
+    return reports.some(r => r.player_id === playerId)
   }
 
   const toggleCompare = (playerId: string) => {
@@ -217,12 +250,19 @@ export default function ScoutingPage() {
                   </div>
                 </div>
                 <div className="mt-3 flex gap-2">
-                  <Link
-                    href={`/dashboard/players/${player.id}?scoutMode=true`}
-                    className="flex-1 text-center text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
-                  >
-                    Scout
-                  </Link>
+                  {hasReport(player.id) ? (
+                    <span className="flex-1 text-center text-sm bg-green-100 text-green-700 px-3 py-1 rounded">
+                      <CheckCircle className="w-3 h-3 inline mr-1" />
+                      Reported
+                    </span>
+                  ) : (
+                    <Link
+                      href={`/dashboard/scouting/reports/new/${player.id}`}
+                      className="flex-1 text-center text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700"
+                    >
+                      Create Report
+                    </Link>
+                  )}
                   <Link
                     href={`/dashboard/players/${player.id}`}
                     className="text-sm text-gray-500 hover:text-gray-700 px-2 py-1"
@@ -265,72 +305,82 @@ export default function ScoutingPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {players.map((player) => (
-            <div key={player.id} className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition border-t-4 border-red-500">
-              <div className="p-5">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-xl font-bold text-gray-900">{player.name}</h3>
-                    <p className="text-gray-600">{player.position}</p>
+          {players.map((player) => {
+            const reported = hasReport(player.id)
+            return (
+              <div key={player.id} className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition border-t-4 border-red-500">
+                <div className="p-5">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900">{player.name}</h3>
+                      <p className="text-gray-600">{player.position}</p>
+                    </div>
+                    {compareMode && (
+                      <button
+                        onClick={() => toggleCompare(player.id)}
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                          selectedForCompare.includes(player.id)
+                            ? 'bg-blue-600 border-blue-600 text-white'
+                            : 'border-gray-300 hover:border-blue-400'
+                        }`}
+                      >
+                        {selectedForCompare.includes(player.id) && '✓'}
+                      </button>
+                    )}
                   </div>
-                  {compareMode && (
-                    <button
-                      onClick={() => toggleCompare(player.id)}
-                      className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${
-                        selectedForCompare.includes(player.id)
-                          ? 'bg-blue-600 border-blue-600 text-white'
-                          : 'border-gray-300 hover:border-blue-400'
-                      }`}
-                    >
-                      {selectedForCompare.includes(player.id) && '✓'}
-                    </button>
-                  )}
-                </div>
-                
-                <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
-                  <Calendar className="w-4 h-4" />
-                  <span>Age {player.age}</span>
-                  <MapPin className="w-4 h-4 ml-2" />
-                  <span>{player.nationality || 'N/A'}</span>
-                </div>
+                  
+                  <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
+                    <Calendar className="w-4 h-4" />
+                    <span>Age {player.age}</span>
+                    <MapPin className="w-4 h-4 ml-2" />
+                    <span>{player.nationality || 'N/A'}</span>
+                  </div>
 
-                {player.player_stats && player.player_stats.length > 0 && (
-                  <div className="mt-4 bg-gray-50 rounded-lg p-3">
-                    <div className="grid grid-cols-3 text-center">
-                      <div>
-                        <p className="text-xs text-gray-500">Matches</p>
-                        <p className="font-bold text-gray-900">{player.player_stats[0]?.matches_played || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Goals</p>
-                        <p className="font-bold text-red-600">{player.player_stats[0]?.goals || 0}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-500">Assists</p>
-                        <p className="font-bold text-blue-600">{player.player_stats[0]?.assists || 0}</p>
+                  {player.player_stats && player.player_stats.length > 0 && (
+                    <div className="mt-4 bg-gray-50 rounded-lg p-3">
+                      <div className="grid grid-cols-3 text-center">
+                        <div>
+                          <p className="text-xs text-gray-500">Matches</p>
+                          <p className="font-bold text-gray-900">{player.player_stats[0]?.matches_played || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Goals</p>
+                          <p className="font-bold text-red-600">{player.player_stats[0]?.goals || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-500">Assists</p>
+                          <p className="font-bold text-blue-600">{player.player_stats[0]?.assists || 0}</p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="mt-4 flex gap-2">
-                  <Link
-                    href={`/dashboard/players/${player.id}?scoutMode=true`}
-                    className="flex-1 text-center py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm flex items-center justify-center gap-1"
-                  >
-                    <Eye className="w-4 h-4" />
-                    Scout
-                  </Link>
-                  <Link
-                    href={`/dashboard/players/${player.id}`}
-                    className="flex-1 text-center py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
-                  >
-                    Profile
-                  </Link>
+                  <div className="mt-4 flex gap-2">
+                    {reported ? (
+                      <span className="flex-1 text-center py-2 bg-green-100 text-green-700 rounded-lg text-sm flex items-center justify-center gap-1">
+                        <CheckCircle className="w-4 h-4" />
+                        Report Submitted
+                      </span>
+                    ) : (
+                      <Link
+                        href={`/dashboard/scouting/reports/new/${player.id}`}
+                        className="flex-1 text-center py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm flex items-center justify-center gap-1"
+                      >
+                        <FileText className="w-4 h-4" />
+                        Create Report
+                      </Link>
+                    )}
+                    <Link
+                      href={`/dashboard/players/${player.id}`}
+                      className="flex-1 text-center py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm"
+                    >
+                      Profile
+                    </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
