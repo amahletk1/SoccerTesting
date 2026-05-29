@@ -38,34 +38,51 @@ export default function ShortlistPage() {
     if (agent) {
       setAgentId(agent.id)
       
-      // Get shortlisted players
-      const { data: shortlistData } = await supabase
+      // Simplified query - get shortlist data first
+      const { data: shortlistData, error } = await supabase
         .from('shortlists')
-        .select('player_id, created_at, players(*, player_stats(*))')
+        .select('player_id, created_at')
         .eq('agent_id', agent.id)
         .order('created_at', { ascending: false })
       
+      if (error) {
+        console.error('Error fetching shortlist:', error)
+        setPlayers([])
+        setLoading(false)
+        return
+      }
+      
       if (shortlistData && shortlistData.length > 0) {
-        const playersList = shortlistData.map(s => ({
-          ...s.players,
-          shortlisted_at: s.created_at
-        }))
-        setPlayers(playersList)
-
-        // Check engagement status for each player
-        const playerIds = playersList.map(p => p.id)
-        const { data: engagements } = await supabase
-          .from('engagements')
-          .select('player_id, status')
-          .eq('agent_id', agent.id)
-          .in('player_id', playerIds)
+        const playerIds = shortlistData.map(item => item.player_id)
         
-        if (engagements) {
-          const statusMap: Record<string, string> = {}
-          engagements.forEach(e => {
-            statusMap[e.player_id] = e.status
-          })
-          setEngagementStatus(statusMap)
+        // Fetch player details separately
+        const { data: playersData } = await supabase
+          .from('players')
+          .select('*')
+          .in('id', playerIds)
+        
+        if (playersData) {
+          // Merge shortlist data with player data
+          const mergedPlayers = playersData.map(player => ({
+            ...player,
+            shortlisted_at: shortlistData.find(s => s.player_id === player.id)?.created_at
+          }))
+          setPlayers(mergedPlayers)
+          
+          // Check engagement status
+          const { data: engagements } = await supabase
+            .from('engagements')
+            .select('player_id, status')
+            .eq('agent_id', agent.id)
+            .in('player_id', playerIds)
+          
+          if (engagements) {
+            const statusMap: Record<string, string> = {}
+            engagements.forEach(e => {
+              statusMap[e.player_id] = e.status
+            })
+            setEngagementStatus(statusMap)
+          }
         }
       } else {
         setPlayers([])
@@ -115,7 +132,6 @@ export default function ShortlistPage() {
       let alreadyRequested = 0
 
       for (const playerId of selectedPlayers) {
-        // Check if already requested
         const { data: existing } = await supabase
           .from('engagements')
           .select('id')
@@ -184,14 +200,13 @@ export default function ShortlistPage() {
 
   return (
     <div>
-      {/* Header */}
       <div className="flex justify-between items-center flex-wrap gap-4 mb-6">
         <div>
           <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent">
             My Shortlist
           </h1>
           <p className="text-gray-600 mt-1">
-            {players.length} player{players.length !== 1 ? 's' : ''} saved for future reference
+            {players.length} player{players.length !== 1 ? 's' : ''} saved
           </p>
         </div>
         {players.length > 0 && (
@@ -219,7 +234,6 @@ export default function ShortlistPage() {
         </div>
       ) : (
         <>
-          {/* Bulk Actions Bar */}
           {bulkAction && selectedPlayers.length > 0 && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 flex flex-wrap justify-between items-center gap-3">
               <div className="flex items-center gap-2">
@@ -247,7 +261,6 @@ export default function ShortlistPage() {
             </div>
           )}
 
-          {/* Select All Checkbox (only in bulk mode) */}
           {bulkAction && players.length > 0 && (
             <div className="mb-4 flex items-center gap-2 bg-white p-3 rounded-lg shadow-sm border">
               <input
@@ -265,12 +278,10 @@ export default function ShortlistPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {players.map((player) => {
-              const stats = player.player_stats?.[0]
               const engagementBadge = getEngagementBadge(engagementStatus[player.id])
               
               return (
                 <div key={player.id} className="bg-white rounded-xl shadow overflow-hidden hover:shadow-lg transition border-t-4 border-yellow-500 relative">
-                  {/* Checkbox for bulk actions */}
                   {bulkAction && (
                     <div className="absolute top-3 left-3 z-10">
                       <input
@@ -285,8 +296,8 @@ export default function ShortlistPage() {
                   <div className="p-6">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
-                        <h3 className="text-xl font-bold text-gray-900">{player.name}</h3>
-                        <p className="text-gray-600">{player.position}</p>
+                        <h3 className="text-xl font-bold text-gray-900">{player.name || 'Unnamed Player'}</h3>
+                        <p className="text-gray-600">{player.position || 'Position not set'}</p>
                       </div>
                       {!bulkAction && (
                         <button
@@ -314,27 +325,6 @@ export default function ShortlistPage() {
                       </div>
                     </div>
 
-                    {/* Performance Stats */}
-                    {stats && (
-                      <div className="mt-4 pt-3 border-t">
-                        <div className="grid grid-cols-3 gap-2 text-center">
-                          <div>
-                            <p className="text-xs text-gray-500">Matches</p>
-                            <p className="font-bold text-gray-800">{stats.matches_played || 0}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Goals</p>
-                            <p className="font-bold text-green-600">{stats.goals || 0}</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-gray-500">Assists</p>
-                            <p className="font-bold text-blue-600">{stats.assists || 0}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Engagement Status Badge */}
                     {engagementBadge && (
                       <div className={`mt-3 ${engagementBadge.color} rounded-lg p-2 flex items-center gap-2 text-xs`}>
                         <engagementBadge.icon className="w-3 h-3" />
@@ -342,7 +332,6 @@ export default function ShortlistPage() {
                       </div>
                     )}
 
-                    {/* Added Date */}
                     {player.shortlisted_at && (
                       <div className="mt-3 flex items-center gap-1 text-xs text-gray-400">
                         <Clock className="w-3 h-3" />
