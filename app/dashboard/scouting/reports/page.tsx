@@ -7,8 +7,9 @@ import Link from 'next/link'
 import { 
   Search, Filter, Eye, Star, TrendingUp, Users,
   Calendar, MapPin, Target, BarChart3, ArrowUpDown,
-  UserPlus, Briefcase, Activity, Zap, Flame
+  UserPlus, Briefcase, Activity, Zap, Flame, FileText,  Award, ChevronRight, XCircle
 } from 'lucide-react'
+
 
 export default function ScoutingPage() {
   const [players, setPlayers] = useState<any[]>([])
