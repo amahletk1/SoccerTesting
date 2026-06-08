@@ -186,7 +186,6 @@ export default function AgentProfilePage() {
     const file = e.target.files?.[0]
     if (!file || !profile) return
 
-    // Check for unsaved changes
     if (hasUnsavedChanges) {
       const confirmSave = confirm('You have unsaved changes. Save before uploading document?')
       if (confirmSave) {
@@ -236,7 +235,6 @@ export default function AgentProfilePage() {
     alert('Document uploaded! Pending verification.')
     setNewDocument({ type: 'license', description: '' })
     
-    // Refresh documents list without resetting form
     const { data: docData } = await supabase
       .from('agent_documents')
       .select('*')
@@ -406,21 +404,27 @@ export default function AgentProfilePage() {
       {/* Agent Info */}
       <div className="bg-white rounded-b-2xl shadow-md pt-16 pb-4 px-6">
         {editing ? (
-          <div className="space-y-2">
-            <input 
-              type="text" 
-              value={formData.name} 
-              onChange={(e) => handleFormChange('name', e.target.value)} 
-              className="text-2xl md:text-3xl font-bold text-gray-900 border-b-2 border-gray-200 focus:border-blue-500 outline-none w-full" 
-              placeholder="Your Name" 
-            />
-            <input 
-              type="text" 
-              value={formData.agency} 
-              onChange={(e) => handleFormChange('agency', e.target.value)} 
-              className="text-lg text-gray-600 border-b-2 border-gray-200 focus:border-blue-500 outline-none w-full" 
-              placeholder="Agency Name" 
-            />
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+              <input 
+                type="text" 
+                value={formData.name} 
+                onChange={(e) => handleFormChange('name', e.target.value)} 
+                className="w-full text-2xl md:text-3xl font-bold text-gray-900 border-2 border-gray-200 rounded-lg p-2 focus:border-blue-500 outline-none" 
+                placeholder="Your full name" 
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Agency Name</label>
+              <input 
+                type="text" 
+                value={formData.agency} 
+                onChange={(e) => handleFormChange('agency', e.target.value)} 
+                className="w-full text-lg text-gray-600 border-2 border-gray-200 rounded-lg p-2 focus:border-blue-500 outline-none" 
+                placeholder="e.g., Sports Management International" 
+              />
+            </div>
           </div>
         ) : (
           <div>
@@ -484,97 +488,103 @@ export default function AgentProfilePage() {
               <Phone className="w-5 h-5 text-blue-600" />
               Contact Information
             </h3>
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <Mail className="w-4 h-4 text-gray-400" />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                 {editing ? (
                   <input 
                     type="email" 
                     value={formData.email} 
                     onChange={(e) => handleFormChange('email', e.target.value)} 
-                    className="flex-1 px-2 py-1 border rounded" 
-                    placeholder="Email"
+                    className="w-full px-3 py-2 border rounded-lg" 
+                    placeholder="agent@example.com"
                   />
                 ) : (
-                  <span className="text-gray-700">{profile?.email || 'Not set'}</span>
+                  <p className="text-gray-700">{profile?.email || 'Not set'}</p>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <Phone className="w-4 h-4 text-gray-400" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                 {editing ? (
                   <input 
                     type="tel" 
                     value={formData.phone} 
                     onChange={(e) => handleFormChange('phone', e.target.value)} 
-                    className="flex-1 px-2 py-1 border rounded" 
-                    placeholder="Phone"
+                    className="w-full px-3 py-2 border rounded-lg" 
+                    placeholder="+27 123 456 789"
                   />
                 ) : (
-                  <span className="text-gray-700">{profile?.phone || 'Not set'}</span>
+                  <p className="text-gray-700">{profile?.phone || 'Not set'}</p>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <Globe className="w-4 h-4 text-gray-400" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
                 {editing ? (
                   <input 
                     type="url" 
                     value={formData.website} 
                     onChange={(e) => handleFormChange('website', e.target.value)} 
-                    className="flex-1 px-2 py-1 border rounded" 
-                    placeholder="Website"
+                    className="w-full px-3 py-2 border rounded-lg" 
+                    placeholder="https://yourwebsite.com"
                   />
                 ) : (
-                  <span className="text-gray-700">{profile?.website || 'Not set'}</span>
+                  <p className="text-gray-700">{profile?.website || 'Not set'}</p>
                 )}
               </div>
-              <div className="flex items-center gap-3">
-                <MapPin className="w-4 h-4 text-gray-400" />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                 {editing ? (
                   <input 
                     type="text" 
                     value={formData.location} 
                     onChange={(e) => handleFormChange('location', e.target.value)} 
-                    className="flex-1 px-2 py-1 border rounded" 
-                    placeholder="Location (e.g., Johannesburg, SA)"
+                    className="w-full px-3 py-2 border rounded-lg" 
+                    placeholder="City, Country (e.g., Johannesburg, South Africa)"
                   />
                 ) : (
-                  <span className="text-gray-700">{profile?.location || 'Location not set'}</span>
+                  <p className="text-gray-700">{profile?.location || 'Not set'}</p>
                 )}
               </div>
             </div>
           </div>
 
-          {/* Professional Information (License & Experience) */}
-          {editing && (
-            <div className="bg-white rounded-xl shadow p-6">
-              <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-blue-600" />
-                Professional Information
-              </h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
+          {/* Professional Information */}
+          <div className="bg-white rounded-xl shadow p-6">
+            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+              <Shield className="w-5 h-5 text-blue-600" />
+              Professional Information
+            </h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">License Number</label>
+                {editing ? (
                   <input 
                     type="text" 
                     value={formData.license_number} 
                     onChange={(e) => handleFormChange('license_number', e.target.value)} 
                     className="w-full px-3 py-2 border rounded-lg" 
-                    placeholder="License Number" 
+                    placeholder="FIFA Agent License Number" 
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
+                ) : (
+                  <p className="text-gray-700">{profile?.license_number || 'Not provided'}</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
+                {editing ? (
                   <input 
                     type="number" 
                     value={formData.years_experience} 
                     onChange={(e) => handleFormChange('years_experience', e.target.value)} 
                     className="w-full px-3 py-2 border rounded-lg" 
-                    placeholder="Years of Experience" 
+                    placeholder="Years in the industry" 
                   />
-                </div>
+                ) : (
+                  <p className="text-gray-700">{profile?.years_experience ? `${profile.years_experience} years` : 'Not specified'}</p>
+                )}
               </div>
             </div>
-          )}
+          </div>
 
           {/* Specializations */}
           <div className="bg-white rounded-xl shadow p-6">
@@ -583,6 +593,9 @@ export default function AgentProfilePage() {
               Specializations
             </h3>
             <div className="flex flex-wrap gap-2 mb-3">
+              {formData.specializations.length === 0 && !editing && (
+                <p className="text-sm text-gray-500">No specializations added</p>
+              )}
               {formData.specializations.map((spec) => (
                 <span key={spec} className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm flex items-center gap-1">
                   {spec}
@@ -591,16 +604,21 @@ export default function AgentProfilePage() {
               ))}
             </div>
             {editing && (
-              <div className="flex gap-2 mt-2">
-                <input 
-                  type="text" 
-                  value={newSpecialization} 
-                  onChange={(e) => setNewSpecialization(e.target.value)} 
-                  placeholder="Add specialization" 
-                  className="flex-1 px-3 py-2 border rounded-lg text-sm" 
-                  onKeyPress={(e) => e.key === 'Enter' && addSpecialization()} 
-                />
-                <button onClick={addSpecialization} className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm">Add</button>
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Add Specialization</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={newSpecialization} 
+                    onChange={(e) => setNewSpecialization(e.target.value)} 
+                    placeholder="e.g., Contract Negotiations, Youth Development" 
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm" 
+                    onKeyPress={(e) => e.key === 'Enter' && addSpecialization()} 
+                  />
+                  <button onClick={addSpecialization} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+                    Add
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -612,6 +630,9 @@ export default function AgentProfilePage() {
               Languages
             </h3>
             <div className="flex flex-wrap gap-2 mb-3">
+              {formData.languages.length === 0 && !editing && (
+                <p className="text-sm text-gray-500">No languages added</p>
+              )}
               {formData.languages.map((lang) => (
                 <span key={lang} className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm flex items-center gap-1">
                   {lang}
@@ -620,16 +641,21 @@ export default function AgentProfilePage() {
               ))}
             </div>
             {editing && (
-              <div className="flex gap-2 mt-2">
-                <input 
-                  type="text" 
-                  value={newLanguage} 
-                  onChange={(e) => setNewLanguage(e.target.value)} 
-                  placeholder="Add language" 
-                  className="flex-1 px-3 py-2 border rounded-lg text-sm" 
-                  onKeyPress={(e) => e.key === 'Enter' && addLanguage()} 
-                />
-                <button onClick={addLanguage} className="bg-green-600 text-white px-3 py-2 rounded-lg text-sm">Add</button>
+              <div className="mt-3">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Add Language</label>
+                <div className="flex gap-2">
+                  <input 
+                    type="text" 
+                    value={newLanguage} 
+                    onChange={(e) => setNewLanguage(e.target.value)} 
+                    placeholder="e.g., English, Spanish, French" 
+                    className="flex-1 px-3 py-2 border rounded-lg text-sm" 
+                    onKeyPress={(e) => e.key === 'Enter' && addLanguage()} 
+                  />
+                  <button onClick={addLanguage} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+                    Add
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -642,10 +668,11 @@ export default function AgentProfilePage() {
             </h3>
             
             <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Document Type</label>
               <select 
                 value={newDocument.type} 
                 onChange={(e) => setNewDocument({ ...newDocument, type: e.target.value })} 
-                className="w-full px-3 py-2 border rounded-lg mb-2" 
+                className="w-full px-3 py-2 border rounded-lg mb-3" 
                 disabled={uploadingDoc}
               >
                 <option value="license">License Certificate</option>
@@ -653,18 +680,22 @@ export default function AgentProfilePage() {
                 <option value="certificate">Business Certificate</option>
                 <option value="other">Other Document</option>
               </select>
+              
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
               <input 
                 type="text" 
                 value={newDocument.description} 
                 onChange={(e) => setNewDocument({ ...newDocument, description: e.target.value })} 
-                placeholder="Description (optional)" 
-                className="w-full px-3 py-2 border rounded-lg mb-2" 
+                placeholder="Brief description of the document" 
+                className="w-full px-3 py-2 border rounded-lg mb-3" 
                 disabled={uploadingDoc} 
               />
-              <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition">
+              
+              <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition">
                 <div className="flex flex-col items-center">
-                  <UploadCloud className="w-6 h-6 text-gray-400 mb-1" />
-                  <p className="text-xs text-gray-500">Click to upload document</p>
+                  <UploadCloud className="w-8 h-8 text-gray-400 mb-2" />
+                  <p className="text-sm text-gray-500">Click to upload document</p>
+                  <p className="text-xs text-gray-400">PDF, JPG, PNG (Max 10MB)</p>
                 </div>
                 <input 
                   type="file" 
@@ -675,14 +706,15 @@ export default function AgentProfilePage() {
                 />
               </label>
               {uploadingDoc && (
-                <div className="mt-2 text-center text-sm text-blue-600">Uploading...</div>
+                <div className="mt-3 text-center text-sm text-blue-600">Uploading...</div>
               )}
             </div>
 
             {documents.length === 0 ? (
-              <p className="text-sm text-gray-500 text-center py-4">No documents uploaded</p>
+              <p className="text-sm text-gray-500 text-center py-4">No documents uploaded yet</p>
             ) : (
               <div className="space-y-2">
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Uploaded Documents</h4>
                 {documents.map((doc) => {
                   const docStatus = getDocumentStatusBadge(doc.status)
                   return (
@@ -691,6 +723,7 @@ export default function AgentProfilePage() {
                         <FileIcon className="w-4 h-4 text-gray-500" />
                         <div>
                           <p className="text-sm font-medium text-gray-800 capitalize">{doc.document_type}</p>
+                          {doc.description && <p className="text-xs text-gray-500">{doc.description}</p>}
                           <p className="text-xs text-gray-400">{new Date(doc.uploaded_at).toLocaleDateString()}</p>
                         </div>
                       </div>
@@ -705,20 +738,24 @@ export default function AgentProfilePage() {
 
         {/* Right Column */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Bio */}
+          {/* Biography */}
           <div className="bg-white rounded-xl shadow p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-gray-600" />
               Biography
             </h3>
             {editing ? (
-              <textarea 
-                value={formData.bio} 
-                onChange={(e) => handleFormChange('bio', e.target.value)} 
-                rows={5} 
-                className="w-full px-3 py-2 border rounded-lg" 
-                placeholder="Tell about your agency..." 
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tell your story</label>
+                <textarea 
+                  value={formData.bio} 
+                  onChange={(e) => handleFormChange('bio', e.target.value)} 
+                  rows={6} 
+                  className="w-full px-3 py-2 border rounded-lg" 
+                  placeholder="Write about your agency, experience, successful deals, philosophy, and what makes you unique as an agent..." 
+                />
+                <p className="text-xs text-gray-500 mt-2">Share your background, achievements, and approach to player representation</p>
+              </div>
             ) : (
               <p className="text-gray-700 leading-relaxed">{profile?.bio || 'No bio added yet.'}</p>
             )}
@@ -733,7 +770,7 @@ export default function AgentProfilePage() {
               </h3>
               <div className="space-y-3">
                 {clients.map((client) => (
-                  <div key={client.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div key={client.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:shadow transition">
                     {client.profile_picture ? (
                       <img src={client.profile_picture} alt={client.name} className="w-10 h-10 rounded-full object-cover" />
                     ) : (
@@ -741,9 +778,11 @@ export default function AgentProfilePage() {
                     )}
                     <div className="flex-1">
                       <p className="font-semibold text-gray-900">{client.name}</p>
-                      <p className="text-sm text-gray-500">{client.position} • {client.current_club || 'Free Agent'}</p>
+                      <p className="text-sm text-gray-500">{client.position || 'Position not set'} • {client.current_club || 'Free Agent'}</p>
                     </div>
-                    <Link href={`/dashboard/players/${client.id}`} className="text-blue-600 hover:underline text-sm">View Profile</Link>
+                    <Link href={`/dashboard/players/${client.id}`} className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                      View Profile →
+                    </Link>
                   </div>
                 ))}
               </div>

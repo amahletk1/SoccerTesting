@@ -48,25 +48,44 @@ export default function NotificationsPage() {
     }
   }
 
-  const markAsRead = async (id: string) => {
-    await supabase
-      .from('email_notifications')
-      .update({ status: 'sent', sent_at: new Date().toISOString() })
-      .eq('id', id)
-    
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, status: 'sent' } : n
-    ))
-  }
+const markAsRead = async (id: string) => {
+  await supabase
+    .from('email_notifications')
+    .update({ status: 'sent', sent_at: new Date().toISOString() })
+    .eq('id', id)
+  
+  // Update local state
+  setNotifications(notifications.map(n => 
+    n.id === id ? { ...n, status: 'sent' } : n
+  ))
+  
+  // The unreadCount will automatically update because it's derived from notifications state
+}
 
-  const deleteNotification = async (id: string) => {
-    await supabase
-      .from('email_notifications')
-      .delete()
-      .eq('id', id)
-    
-    setNotifications(notifications.filter(n => n.id !== id))
-  }
+const deleteNotification = async (id: string) => {
+  await supabase
+    .from('email_notifications')
+    .delete()
+    .eq('id', id)
+  
+  // Update local state by removing the deleted notification
+  setNotifications(notifications.filter(n => n.id !== id))
+  
+  // The unreadCount will automatically update because it's derived from notifications state
+
+  const refreshNotifications = async () => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+  
+  const { data } = await supabase
+    .from('email_notifications')
+    .select('*')
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false })
+  
+  if (data) setNotifications(data)
+}
+}
 
   const unreadCount = notifications.filter(n => n.status === 'pending').length
 

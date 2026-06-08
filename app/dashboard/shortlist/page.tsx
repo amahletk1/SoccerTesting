@@ -38,7 +38,7 @@ export default function ShortlistPage() {
     if (agent) {
       setAgentId(agent.id)
       
-      // Simplified query - get shortlist data first
+      // Get shortlist data first
       const { data: shortlistData, error } = await supabase
         .from('shortlists')
         .select('player_id, created_at')
@@ -344,7 +344,7 @@ export default function ShortlistPage() {
                       className="mt-4 flex items-center justify-center gap-2 w-full py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition"
                     >
                       <Eye className="w-4 h-4" />
-                      View Profile
+                      View Full Profile
                     </Link>
                   </div>
                 </div>

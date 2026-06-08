@@ -6,8 +6,8 @@ import { useRouter } from 'next/navigation'
 import { 
   Camera, MapPin, Calendar, TrendingUp, Award, Heart, Eye, 
   Save, Edit2, X, Video, Upload, Trash2, User, CheckCircle, Clock,
-  Plus, Target, Zap, Shield, Activity,
-  Briefcase, DollarSign, Phone, Link,
+  Plus, Trash, Target, Zap, Shield, Activity as ActivityIcon,
+  Briefcase, Calendar as CalendarIcon, DollarSign, Phone, Link as LinkIcon,
   Globe
 } from 'lucide-react'
 
@@ -21,7 +21,8 @@ export default function ProfilePage() {
   const [uploading, setUploading] = useState(false)
   const [editing, setEditing] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
-  
+  const [savingSection, setSavingSection] = useState<string | null>(null)
+
   // Basic Info
   const [formData, setFormData] = useState({
     name: '',
@@ -41,20 +42,11 @@ export default function ProfilePage() {
     market_value: '',
     bio: ''
   })
-  
-  // Social Links
-  const [socialLinks, setSocialLinks] = useState({
-    twitter: '',
-    instagram: '',
-    facebook: '',
-    youtube: '',
-    website: ''
-  })
-  
+
   // Achievements
   const [achievements, setAchievements] = useState<string[]>([])
   const [newAchievement, setNewAchievement] = useState('')
-  
+
   // Performance Ratings
   const [performanceRatings, setPerformanceRatings] = useState({
     pace: 85,
@@ -64,7 +56,7 @@ export default function ProfilePage() {
     defending: 45,
     physical: 80
   })
-  
+
   // New Season Stats
   const [newSeasonStat, setNewSeasonStat] = useState({
     season: '',
@@ -79,7 +71,7 @@ export default function ProfilePage() {
     pass_accuracy: 0,
     shot_accuracy: 0
   })
-  
+
   // New Career History
   const [newCareerEntry, setNewCareerEntry] = useState({
     club_name: '',
@@ -88,7 +80,7 @@ export default function ProfilePage() {
     start_date: '',
     end_date: '',
     is_current: false,
-    transfer_type: 'Permanent',
+    transfer_type: 'permanent',
     transfer_fee: '',
     appearances: 0,
     goals: 0,
@@ -109,7 +101,6 @@ export default function ProfilePage() {
       return
     }
 
-    // Get player profile
     const { data: player } = await supabase
       .from('players')
       .select('*, player_stats(*)')
@@ -142,40 +133,30 @@ export default function ProfilePage() {
       bio: player.bio || ''
     })
 
-    // Load social links
-    if (player.social_links) {
-      setSocialLinks(player.social_links)
-    }
-
-    // Load achievements
     if (player.achievements && Array.isArray(player.achievements)) {
       setAchievements(player.achievements)
     }
 
-    // Load performance ratings
     if (player.performance_ratings) {
       setPerformanceRatings(player.performance_ratings)
     }
 
-    // Load season stats
     const { data: seasonData } = await supabase
       .from('season_stats')
       .select('*')
       .eq('player_id', player.id)
       .order('season', { ascending: false })
-    
+
     if (seasonData) setSeasonStats(seasonData)
 
-    // Load career history
     const { data: careerData } = await supabase
       .from('career_history')
       .select('*')
       .eq('player_id', player.id)
       .order('start_date', { ascending: false })
-    
+
     if (careerData) setCareerHistory(careerData)
 
-    // Get player media
     const { data: mediaData } = await supabase
       .from('media')
       .select('*')
@@ -312,6 +293,131 @@ export default function ProfilePage() {
     }
   }
 
+  // Save individual sections
+  const saveBasicInfo = async () => {
+    setSavingSection('basic')
+    const dateOfBirth = formData.date_of_birth && formData.date_of_birth.trim() !== '' ? formData.date_of_birth : null
+    
+    const { error } = await supabase
+      .from('players')
+      .update({
+        name: formData.name || null,
+        date_of_birth: dateOfBirth,
+        position: formData.position || null,
+        nationality: formData.nationality || null,
+        height_cm: formData.height_cm ? parseInt(formData.height_cm) : null,
+        weight_kg: formData.weight_kg ? parseInt(formData.weight_kg) : null,
+        preferred_foot: formData.preferred_foot || null,
+        jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+      })
+      .eq('id', profile.id)
+
+    if (error) {
+      alert('Error saving basic info: ' + error.message)
+    } else {
+      alert('Basic information saved!')
+      fetchProfileData()
+    }
+    setSavingSection(null)
+  }
+
+  const saveClubInfo = async () => {
+    setSavingSection('club')
+    const clubSince = formData.current_club_since && formData.current_club_since.trim() !== '' ? formData.current_club_since : null
+    const contractUntil = formData.contract_until && formData.contract_until.trim() !== '' ? formData.contract_until : null
+    
+    const { error } = await supabase
+      .from('players')
+      .update({
+        current_club: formData.current_club || null,
+        current_club_since: clubSince,
+        contract_until: contractUntil,
+        market_value: formData.market_value ? parseFloat(formData.market_value) : null,
+      })
+      .eq('id', profile.id)
+
+    if (error) {
+      alert('Error saving club info: ' + error.message)
+    } else {
+      alert('Club information saved!')
+      fetchProfileData()
+    }
+    setSavingSection(null)
+  }
+
+  const saveAgentInfo = async () => {
+    setSavingSection('agent')
+    const { error } = await supabase
+      .from('players')
+      .update({
+        agent_name: formData.agent_name || null,
+        agent_contact: formData.agent_contact || null,
+      })
+      .eq('id', profile.id)
+
+    if (error) {
+      alert('Error saving agent info: ' + error.message)
+    } else {
+      alert('Agent information saved!')
+      fetchProfileData()
+    }
+    setSavingSection(null)
+  }
+
+  const saveBio = async () => {
+    setSavingSection('bio')
+    const { error } = await supabase
+      .from('players')
+      .update({
+        bio: formData.bio || null,
+      })
+      .eq('id', profile.id)
+
+    if (error) {
+      alert('Error saving bio: ' + error.message)
+    } else {
+      alert('Bio saved!')
+      fetchProfileData()
+    }
+    setSavingSection(null)
+  }
+
+  const saveAchievements = async () => {
+    setSavingSection('achievements')
+    const { error } = await supabase
+      .from('players')
+      .update({
+        achievements: achievements,
+      })
+      .eq('id', profile.id)
+
+    if (error) {
+      alert('Error saving achievements: ' + error.message)
+    } else {
+      alert('Achievements saved!')
+      fetchProfileData()
+    }
+    setSavingSection(null)
+  }
+
+  const savePerformanceRatings = async () => {
+    setSavingSection('ratings')
+    const { error } = await supabase
+      .from('players')
+      .update({
+        performance_ratings: performanceRatings,
+      })
+      .eq('id', profile.id)
+
+    if (error) {
+      alert('Error saving ratings: ' + error.message)
+    } else {
+      alert('Performance ratings saved!')
+      fetchProfileData()
+    }
+    setSavingSection(null)
+  }
+
   const addAchievement = () => {
     if (newAchievement.trim()) {
       setAchievements([...achievements, newAchievement.trim()])
@@ -371,8 +477,8 @@ export default function ProfilePage() {
         club_name: newCareerEntry.club_name,
         league: newCareerEntry.league,
         country: newCareerEntry.country,
-        start_date: newCareerEntry.start_date,
-        end_date: newCareerEntry.is_current ? null : newCareerEntry.end_date,
+        start_date: newCareerEntry.start_date || null,
+        end_date: newCareerEntry.is_current ? null : (newCareerEntry.end_date || null),
         is_current: newCareerEntry.is_current,
         transfer_type: newCareerEntry.transfer_type,
         transfer_fee: newCareerEntry.transfer_fee ? parseFloat(newCareerEntry.transfer_fee) : null,
@@ -387,7 +493,8 @@ export default function ProfilePage() {
       alert('Career entry added!')
       setNewCareerEntry({
         club_name: '', league: '', country: '', start_date: '', end_date: '',
-        is_current: false, transfer_type: 'Permanent', transfer_fee: '',
+        is_current: false, transfer_type: 'permanent',
+        transfer_fee: '',
         appearances: 0, goals: 0, assists: 0
       })
       fetchProfileData()
@@ -424,43 +531,8 @@ export default function ProfilePage() {
     setPerformanceRatings({ ...performanceRatings, [key]: value })
   }
 
-  const handleUpdateProfile = async () => {
-    setLoading(true)
-
-    const { error } = await supabase
-      .from('players')
-      .update({
-        name: formData.name,
-        age: parseInt(formData.age),
-        date_of_birth: formData.date_of_birth,
-        position: formData.position,
-        nationality: formData.nationality,
-        height_cm: formData.height_cm ? parseInt(formData.height_cm) : null,
-        weight_kg: formData.weight_kg ? parseInt(formData.weight_kg) : null,
-        preferred_foot: formData.preferred_foot,
-        current_club: formData.current_club,
-        current_club_since: formData.current_club_since,
-        contract_until: formData.contract_until,
-        jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
-        agent_name: formData.agent_name,
-        agent_contact: formData.agent_contact,
-        market_value: formData.market_value ? parseFloat(formData.market_value) : null,
-        bio: formData.bio,
-        social_links: socialLinks,
-        achievements: achievements,
-        performance_ratings: performanceRatings
-      })
-      .eq('id', profile.id)
-
-    if (error) {
-      alert('Error updating profile: ' + error.message)
-    } else {
-      setProfile({ ...profile, ...formData })
-      setEditing(false)
-      alert('Profile updated successfully!')
-      fetchProfileData()
-    }
-    setLoading(false)
+  const handleFormChange = (field: string, value: any) => {
+    setFormData({ ...formData, [field]: value })
   }
 
   if (loading) {
@@ -476,7 +548,7 @@ export default function ProfilePage() {
       {/* Cover Photo Section */}
       <div className="relative">
         <div className="h-32 md:h-48 bg-gradient-to-r from-red-600 via-black to-blue-600 rounded-t-2xl"></div>
-        
+
         {/* Profile Picture */}
         <div className="absolute -bottom-16 left-6 md:left-10">
           <div className="relative">
@@ -507,27 +579,20 @@ export default function ProfilePage() {
             />
           </div>
         </div>
-        
+
         {/* Edit/Save Buttons */}
         <div className="absolute top-4 right-4 flex gap-2">
           {editing ? (
-            <>
-              <button
-                onClick={() => setEditing(false)}
-                className="flex items-center gap-2 bg-gray-200 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-gray-300 transition"
-              >
-                <X className="w-4 h-4" />
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateProfile}
-                disabled={loading}
-                className="flex items-center gap-2 bg-red-600 text-white px-3 py-1.5 rounded-full text-sm font-medium hover:bg-red-700 transition"
-              >
-                <Save className="w-4 h-4" />
-                Save All
-              </button>
-            </>
+            <button
+              onClick={() => {
+                setEditing(false)
+                fetchProfileData()
+              }}
+              className="flex items-center gap-2 bg-gray-200 px-3 py-1.5 rounded-full text-sm font-medium hover:bg-gray-300 transition"
+            >
+              <X className="w-4 h-4" />
+              Done Editing
+            </button>
           ) : (
             <button
               onClick={() => setEditing(true)}
@@ -547,8 +612,8 @@ export default function ProfilePage() {
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="text-2xl md:text-3xl font-bold text-gray-900 border-b-2 border-gray-200 focus:border-red-500 outline-none"
+              onChange={(e) => handleFormChange('name', e.target.value)}
+              className="text-2xl md:text-3xl font-bold text-gray-900 border-b-2 border-gray-200 focus:border-red-500 outline-none w-full"
             />
           </div>
         ) : (
@@ -616,16 +681,26 @@ export default function ProfilePage() {
           <div className="space-y-6">
             {editing ? (
               <>
-                {/* Basic Information */}
+                {/* Basic Information Section */}
                 <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">Basic Information</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Basic Information</h3>
+                    <button
+                      onClick={saveBasicInfo}
+                      disabled={savingSection === 'basic'}
+                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingSection === 'basic' ? 'Saving...' : 'Save Section'}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                       <input
                         type="text"
                         value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        onChange={(e) => handleFormChange('name', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -634,7 +709,7 @@ export default function ProfilePage() {
                       <input
                         type="date"
                         value={formData.date_of_birth}
-                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                        onChange={(e) => handleFormChange('date_of_birth', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -642,7 +717,7 @@ export default function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
                       <select
                         value={formData.position}
-                        onChange={(e) => setFormData({ ...formData, position: e.target.value })}
+                        onChange={(e) => handleFormChange('position', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       >
                         <option value="">Select Position</option>
@@ -656,7 +731,7 @@ export default function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Foot</label>
                       <select
                         value={formData.preferred_foot}
-                        onChange={(e) => setFormData({ ...formData, preferred_foot: e.target.value })}
+                        onChange={(e) => handleFormChange('preferred_foot', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       >
                         <option value="Left">Left</option>
@@ -669,7 +744,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={formData.nationality}
-                        onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
+                        onChange={(e) => handleFormChange('nationality', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -678,7 +753,7 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         value={formData.jersey_number}
-                        onChange={(e) => setFormData({ ...formData, jersey_number: e.target.value })}
+                        onChange={(e) => handleFormChange('jersey_number', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -687,7 +762,7 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         value={formData.height_cm}
-                        onChange={(e) => setFormData({ ...formData, height_cm: e.target.value })}
+                        onChange={(e) => handleFormChange('height_cm', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -696,23 +771,33 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         value={formData.weight_kg}
-                        onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value })}
+                        onChange={(e) => handleFormChange('weight_kg', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Club Information */}
+                {/* Club Information Section */}
                 <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">Club Information</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Club Information</h3>
+                    <button
+                      onClick={saveClubInfo}
+                      disabled={savingSection === 'club'}
+                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingSection === 'club' ? 'Saving...' : 'Save Section'}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Current Club</label>
                       <input
                         type="text"
                         value={formData.current_club}
-                        onChange={(e) => setFormData({ ...formData, current_club: e.target.value })}
+                        onChange={(e) => handleFormChange('current_club', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="e.g., Kaizer Chiefs"
                       />
@@ -722,7 +807,7 @@ export default function ProfilePage() {
                       <input
                         type="date"
                         value={formData.current_club_since}
-                        onChange={(e) => setFormData({ ...formData, current_club_since: e.target.value })}
+                        onChange={(e) => handleFormChange('current_club_since', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -731,7 +816,7 @@ export default function ProfilePage() {
                       <input
                         type="date"
                         value={formData.contract_until}
-                        onChange={(e) => setFormData({ ...formData, contract_until: e.target.value })}
+                        onChange={(e) => handleFormChange('contract_until', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -740,7 +825,7 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         value={formData.market_value}
-                        onChange={(e) => setFormData({ ...formData, market_value: e.target.value })}
+                        onChange={(e) => handleFormChange('market_value', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="e.g., 500000"
                       />
@@ -748,16 +833,26 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Agent Information */}
+                {/* Agent Information Section */}
                 <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">Agent Information</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Agent Information</h3>
+                    <button
+                      onClick={saveAgentInfo}
+                      disabled={savingSection === 'agent'}
+                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingSection === 'agent' ? 'Saving...' : 'Save Section'}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Agent Name</label>
                       <input
                         type="text"
                         value={formData.agent_name}
-                        onChange={(e) => setFormData({ ...formData, agent_name: e.target.value })}
+                        onChange={(e) => handleFormChange('agent_name', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -766,7 +861,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={formData.agent_contact}
-                        onChange={(e) => setFormData({ ...formData, agent_contact: e.target.value })}
+                        onChange={(e) => handleFormChange('agent_contact', e.target.value)}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="Email or Phone"
                       />
@@ -774,53 +869,46 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Social Links - Simplified without icons */}
+                {/* Bio Section */}
                 <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">Social Media</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Website</label>
-                      <input
-                        type="text"
-                        value={socialLinks.website}
-                        onChange={(e) => setSocialLinks({ ...socialLinks, website: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="Personal website URL"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">YouTube</label>
-                      <input
-                        type="text"
-                        value={socialLinks.youtube}
-                        onChange={(e) => setSocialLinks({ ...socialLinks, youtube: e.target.value })}
-                        className="w-full px-3 py-2 border rounded-lg"
-                        placeholder="YouTube URL"
-                      />
-                    </div>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Biography</h3>
+                    <button
+                      onClick={saveBio}
+                      disabled={savingSection === 'bio'}
+                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingSection === 'bio' ? 'Saving...' : 'Save Section'}
+                    </button>
                   </div>
-                </div>
-
-                {/* Bio */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">Biography</h3>
                   <textarea
                     value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                    onChange={(e) => handleFormChange('bio', e.target.value)}
                     rows={4}
                     className="w-full px-3 py-2 border rounded-lg"
                     placeholder="Tell your story..."
                   />
                 </div>
 
-                {/* Achievements */}
+                {/* Achievements Section */}
                 <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">🏆 Achievements</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">🏆 Achievements</h3>
+                    <button
+                      onClick={saveAchievements}
+                      disabled={savingSection === 'achievements'}
+                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingSection === 'achievements' ? 'Saving...' : 'Save Section'}
+                    </button>
+                  </div>
                   {achievements.map((achievement, idx) => (
                     <div key={idx} className="flex items-center gap-2 mb-2">
                       <span className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm">{achievement}</span>
                       <button onClick={() => removeAchievement(idx)} className="text-red-500 hover:text-red-700">
-                        <Trash2 className="w-4 h-4" />
+                        <Trash className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
@@ -832,15 +920,25 @@ export default function ProfilePage() {
                       placeholder="Add achievement (e.g., Top Scorer 2023)"
                       className="flex-1 px-3 py-2 border rounded-lg text-sm"
                     />
-                    <button onClick={addAchievement} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700">
+                    <button onClick={addAchievement} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700">
                       <Plus className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* Performance Ratings */}
+                {/* Performance Ratings Section */}
                 <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">📊 Performance Ratings (1-100)</h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">📊 Performance Ratings (1-100)</h3>
+                    <button
+                      onClick={savePerformanceRatings}
+                      disabled={savingSection === 'ratings'}
+                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
+                    >
+                      <Save className="w-4 h-4" />
+                      {savingSection === 'ratings' ? 'Saving...' : 'Save Section'}
+                    </button>
+                  </div>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     {Object.entries(performanceRatings).map(([key, value]) => (
                       <div key={key}>
@@ -861,9 +959,8 @@ export default function ProfilePage() {
                 </div>
               </>
             ) : (
-              // View mode
+              // View mode (same as before)
               <div className="space-y-6">
-                {/* Basic Info Card */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h3 className="text-lg font-semibold mb-4">Player Information</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -886,7 +983,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Club Info Card */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h3 className="text-lg font-semibold mb-4">Club Information</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -909,7 +1005,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Agent Info Card */}
                 {(profile?.agent_name || profile?.agent_contact) && (
                   <div className="bg-white rounded-xl shadow p-6">
                     <h3 className="text-lg font-semibold mb-4">Agent Information</h3>
@@ -926,7 +1021,6 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Achievements Display */}
                 {achievements.length > 0 && (
                   <div className="bg-white rounded-xl shadow p-6">
                     <h3 className="text-lg font-semibold mb-4">🏆 Achievements</h3>
@@ -941,7 +1035,6 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                {/* Performance Ratings Display */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h3 className="text-lg font-semibold mb-4">📊 Performance Ratings</h3>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -959,26 +1052,6 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Social Links Display - Simplified */}
-                {(socialLinks.website || socialLinks.youtube) && (
-                  <div className="bg-white rounded-xl shadow p-6">
-                    <h3 className="text-lg font-semibold mb-4">Links</h3>
-                    <div className="flex flex-wrap gap-4">
-                      {socialLinks.website && (
-                        <a href={socialLinks.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 transition">
-                          <Globe className="w-5 h-5" />
-                        </a>
-                      )}
-                      {socialLinks.youtube && (
-                        <a href={socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="text-red-600 hover:text-red-800 transition">
-                          <div className="w-5 h-5 font-bold text-sm">YT</div>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Bio Display */}
                 {profile?.bio && (
                   <div className="bg-white rounded-xl shadow p-6">
                     <h3 className="text-lg font-semibold mb-4">Biography</h3>
@@ -990,118 +1063,149 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Season Stats Tab */}
+        {/* Season Stats Tab - Keep the same as before */}
         {activeTab === 'stats' && (
           <div className="space-y-6">
-            {/* Add Season Stat Form */}
             {editing && (
               <div className="bg-white rounded-xl shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">Add Season Statistics</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Season (e.g., 2023-24)"
-                    value={newSeasonStat.season}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, season: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Competition"
-                    value={newSeasonStat.competition}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, competition: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Club"
-                    value={newSeasonStat.club}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, club: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Appearances"
-                    value={newSeasonStat.appearances}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, appearances: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Goals"
-                    value={newSeasonStat.goals}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, goals: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Assists"
-                    value={newSeasonStat.assists}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, assists: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Minutes Played"
-                    value={newSeasonStat.minutes_played}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, minutes_played: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Yellow Cards"
-                    value={newSeasonStat.yellow_cards}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, yellow_cards: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Red Cards"
-                    value={newSeasonStat.red_cards}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, red_cards: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Pass Accuracy %"
-                    value={newSeasonStat.pass_accuracy}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, pass_accuracy: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Shot Accuracy %"
-                    value={newSeasonStat.shot_accuracy}
-                    onChange={(e) => setNewSeasonStat({ ...newSeasonStat, shot_accuracy: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Season *</label>
+                    <input
+                      type="text"
+                      value={newSeasonStat.season}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, season: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., 2023/2024"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Competition *</label>
+                    <input
+                      type="text"
+                      value={newSeasonStat.competition}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, competition: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., Premier League"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Club *</label>
+                    <input
+                      type="text"
+                      value={newSeasonStat.club}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, club: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="Club name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Appearances</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.appearances}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, appearances: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.goals}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, goals: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assists</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.assists}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, assists: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Minutes Played</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.minutes_played}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, minutes_played: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Yellow Cards</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.yellow_cards}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, yellow_cards: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Red Cards</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.red_cards}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, red_cards: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Pass Accuracy (%)</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.pass_accuracy}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, pass_accuracy: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Shot Accuracy (%)</label>
+                    <input
+                      type="number"
+                      value={newSeasonStat.shot_accuracy}
+                      onChange={(e) => setNewSeasonStat({ ...newSeasonStat, shot_accuracy: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
                 </div>
-                <button onClick={addSeasonStat} className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                <button
+                  onClick={addSeasonStat}
+                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                  <Plus className="w-4 h-4 inline mr-2" />
                   Add Season Stats
                 </button>
               </div>
             )}
 
-            {/* Season Stats List */}
             {seasonStats.length === 0 ? (
-              <div className="bg-white rounded-xl shadow p-12 text-center text-gray-500">
-                No season statistics added yet.
+              <div className="bg-white rounded-xl shadow p-12 text-center">
+                <TrendingUp className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No season statistics added yet</p>
               </div>
             ) : (
-              seasonStats.map((stat) => (
-                <div key={stat.id} className="bg-white rounded-xl shadow overflow-hidden">
-                  <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-3 flex justify-between items-center">
-                    <div>
-                      <h3 className="text-white font-bold text-lg">{stat.season}</h3>
-                      <p className="text-red-100 text-sm">{stat.competition} • {stat.club}</p>
+              <div className="space-y-4">
+                {seasonStats.map((stat) => (
+                  <div key={stat.id} className="bg-white rounded-xl shadow p-6">
+                    <div className="flex justify-between items-start mb-4">
+                      <div>
+                        <h3 className="text-xl font-bold text-gray-900">{stat.season}</h3>
+                        <p className="text-gray-600">{stat.competition} • {stat.club}</p>
+                      </div>
+                      {editing && (
+                        <button
+                          onClick={() => deleteSeasonStat(stat.id)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
-                    {editing && (
-                      <button onClick={() => deleteSeasonStat(stat.id)} className="text-white hover:text-red-200">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    )}
-                  </div>
-                  <div className="p-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                       <div className="text-center">
                         <p className="text-2xl font-bold text-gray-900">{stat.appearances}</p>
@@ -1128,153 +1232,188 @@ export default function ProfilePage() {
                         <p className="text-xs text-gray-500">Shot Accuracy</p>
                       </div>
                     </div>
-                    {(stat.yellow_cards > 0 || stat.red_cards > 0) && (
-                      <div className="mt-4 pt-4 border-t flex gap-4 text-sm">
-                        {stat.yellow_cards > 0 && <span className="text-yellow-600">🟨 {stat.yellow_cards} Yellow Cards</span>}
-                        {stat.red_cards > 0 && <span className="text-red-600">🟥 {stat.red_cards} Red Cards</span>}
-                      </div>
-                    )}
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             )}
           </div>
         )}
 
-        {/* Career History Tab */}
+        {/* Career History Tab - Keep the same as before */}
         {activeTab === 'career' && (
           <div className="space-y-6">
-            {/* Add Career Entry Form */}
             {editing && (
               <div className="bg-white rounded-xl shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">Add Career History</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <input
-                    type="text"
-                    placeholder="Club Name *"
-                    value={newCareerEntry.club_name}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, club_name: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    placeholder="League"
-                    value={newCareerEntry.league}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, league: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Country"
-                    value={newCareerEntry.country}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, country: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="date"
-                    placeholder="Start Date"
-                    value={newCareerEntry.start_date}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, start_date: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="date"
-                    placeholder="End Date"
-                    value={newCareerEntry.end_date}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, end_date: e.target.value })}
-                    disabled={newCareerEntry.is_current}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <label className="flex items-center gap-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Club Name *</label>
+                    <input
+                      type="text"
+                      value={newCareerEntry.club_name}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, club_name: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., Kaizer Chiefs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">League</label>
+                    <input
+                      type="text"
+                      value={newCareerEntry.league}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, league: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., DStv Premiership"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                    <input
+                      type="text"
+                      value={newCareerEntry.country}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, country: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., South Africa"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={newCareerEntry.start_date}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, start_date: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={newCareerEntry.end_date}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, end_date: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      disabled={newCareerEntry.is_current}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Transfer Type</label>
+                    <select
+                      value={newCareerEntry.transfer_type}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, transfer_type: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    >
+                      <option value="permanent">Permanent Transfer</option>
+                      <option value="loan">Loan</option>
+                      <option value="free">Free Transfer</option>
+                      <option value="youth">Youth Academy</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Transfer Fee (€)</label>
+                    <input
+                      type="number"
+                      value={newCareerEntry.transfer_fee}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, transfer_fee: e.target.value })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                      placeholder="e.g., 5000000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Appearances</label>
+                    <input
+                      type="number"
+                      value={newCareerEntry.appearances}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, appearances: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Goals</label>
+                    <input
+                      type="number"
+                      value={newCareerEntry.goals}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, goals: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Assists</label>
+                    <input
+                      type="number"
+                      value={newCareerEntry.assists}
+                      onChange={(e) => setNewCareerEntry({ ...newCareerEntry, assists: parseInt(e.target.value) })}
+                      className="w-full px-3 py-2 border rounded-lg"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
+                      id="is_current"
                       checked={newCareerEntry.is_current}
                       onChange={(e) => setNewCareerEntry({ ...newCareerEntry, is_current: e.target.checked, end_date: '' })}
-                      className="rounded"
+                      className="w-4 h-4"
                     />
-                    <span className="text-sm text-gray-700">Current Club</span>
-                  </label>
-                  <select
-                    value={newCareerEntry.transfer_type}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, transfer_type: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  >
-                    <option value="Permanent">Permanent Transfer</option>
-                    <option value="Loan">Loan</option>
-                    <option value="Free">Free Transfer</option>
-                  </select>
-                  <input
-                    type="number"
-                    placeholder="Transfer Fee (€)"
-                    value={newCareerEntry.transfer_fee}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, transfer_fee: e.target.value })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Appearances"
-                    value={newCareerEntry.appearances}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, appearances: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Goals"
-                    value={newCareerEntry.goals}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, goals: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
-                  <input
-                    type="number"
-                    placeholder="Assists"
-                    value={newCareerEntry.assists}
-                    onChange={(e) => setNewCareerEntry({ ...newCareerEntry, assists: parseInt(e.target.value) })}
-                    className="px-3 py-2 border rounded-lg"
-                  />
+                    <label htmlFor="is_current" className="text-sm font-medium text-gray-700">
+                      Current Club
+                    </label>
+                  </div>
                 </div>
-                <button onClick={addCareerEntry} className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                <button
+                  onClick={addCareerEntry}
+                  className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+                >
+                  <Plus className="w-4 h-4 inline mr-2" />
                   Add Career Entry
                 </button>
               </div>
             )}
 
-            {/* Career History List */}
             {careerHistory.length === 0 ? (
-              <div className="bg-white rounded-xl shadow p-12 text-center text-gray-500">
-                No career history added yet.
+              <div className="bg-white rounded-xl shadow p-12 text-center">
+                <Briefcase className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No career history added yet</p>
               </div>
             ) : (
               <div className="relative">
                 <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                {careerHistory.map((entry, idx) => (
-                  <div key={entry.id} className="relative flex gap-4 mb-8">
-                    <div className="flex-shrink-0 w-16 h-16 bg-gradient-to-br from-red-500 to-red-600 rounded-full flex items-center justify-center text-white font-bold text-xl z-10 shadow-md">
-                      {entry.club_name.charAt(0)}
-                    </div>
-                    <div className="flex-1 bg-white rounded-xl shadow p-5">
-                      <div className="flex justify-between items-start flex-wrap gap-2">
+                {careerHistory.map((entry, index) => (
+                  <div key={entry.id} className={`relative pl-16 pb-8 ${index === careerHistory.length - 1 ? 'pb-0' : ''}`}>
+                    <div className="absolute left-6 top-0 w-5 h-5 bg-blue-600 rounded-full border-4 border-white shadow"></div>
+                    <div className="bg-white rounded-xl shadow p-6 ml-4">
+                      <div className="flex justify-between items-start mb-3">
                         <div>
                           <h3 className="text-xl font-bold text-gray-900">{entry.club_name}</h3>
-                          <p className="text-gray-500 text-sm">{entry.league} • {entry.country}</p>
+                          <p className="text-gray-600">
+                            {entry.league && `${entry.league} • `}
+                            {entry.country}
+                          </p>
+                          <p className="text-sm text-gray-500 mt-1">
+                            {entry.start_date && new Date(entry.start_date).getFullYear()} -{' '}
+                            {entry.is_current ? 'Present' : (entry.end_date ? new Date(entry.end_date).getFullYear() : '')}
+                          </p>
                         </div>
-                        {entry.is_current && (
-                          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-semibold">Current</span>
-                        )}
                         {editing && (
-                          <button onClick={() => deleteCareerEntry(entry.id)} className="text-red-500 hover:text-red-700">
-                            <Trash2 className="w-5 h-5" />
+                          <button
+                            onClick={() => deleteCareerEntry(entry.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash className="w-5 h-5" />
                           </button>
                         )}
                       </div>
-                      <div className="flex flex-wrap gap-4 mt-3 text-sm text-gray-600">
-                        <span>📅 {new Date(entry.start_date).getFullYear()} - {entry.end_date ? new Date(entry.end_date).getFullYear() : 'Present'}</span>
-                        <span>🔄 {entry.transfer_type}</span>
-                        {entry.transfer_fee && <span>💰 €{(entry.transfer_fee / 1000000).toFixed(1)}M</span>}
-                      </div>
-                      <div className="flex gap-6 mt-4 pt-3 border-t">
-                        <div><span className="font-bold text-gray-900">{entry.appearances}</span> <span className="text-gray-500 text-sm">Apps</span></div>
-                        <div><span className="font-bold text-green-600">{entry.goals}</span> <span className="text-gray-500 text-sm">Goals</span></div>
-                        <div><span className="font-bold text-blue-600">{entry.assists}</span> <span className="text-gray-500 text-sm">Assists</span></div>
+                      <div className="flex flex-wrap gap-4 text-sm">
+                        {entry.appearances > 0 && (
+                          <span className="text-gray-600">📊 {entry.appearances} apps</span>
+                        )}
+                        {entry.goals > 0 && (
+                          <span className="text-green-600">⚽ {entry.goals} goals</span>
+                        )}
+                        {entry.assists > 0 && (
+                          <span className="text-blue-600">🎯 {entry.assists} assists</span>
+                        )}
+                        {entry.transfer_fee && entry.transfer_fee > 0 && (
+                          <span className="text-purple-600">💰 €{(entry.transfer_fee / 1000000).toFixed(1)}M</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1284,10 +1423,9 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Media Tab */}
+        {/* Media Tab - Keep the same as before */}
         {activeTab === 'media' && (
           <div className="space-y-6">
-            {/* Upload Media */}
             {editing && (
               <div className="bg-white rounded-xl shadow p-6">
                 <h3 className="text-lg font-semibold mb-4">Upload Media</h3>
@@ -1295,7 +1433,7 @@ export default function ProfilePage() {
                   <div className="flex flex-col items-center">
                     <Upload className="w-8 h-8 text-gray-400 mb-2" />
                     <p className="text-sm text-gray-500">Click to upload image or video</p>
-                    <p className="text-xs text-gray-400">Images: up to 5MB | Videos: up to 50MB</p>
+                    <p className="text-xs text-gray-400">Images up to 5MB, Videos up to 50MB</p>
                   </div>
                   <input
                     type="file"
@@ -1306,17 +1444,15 @@ export default function ProfilePage() {
                   />
                 </label>
                 {uploading && (
-                  <div className="mt-4 flex justify-center">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
-                  </div>
+                  <div className="mt-4 text-center text-sm text-blue-600">Uploading...</div>
                 )}
               </div>
             )}
 
-            {/* Media Gallery */}
             {media.length === 0 ? (
-              <div className="bg-white rounded-xl shadow p-12 text-center text-gray-500">
-                No media uploaded yet.
+              <div className="bg-white rounded-xl shadow p-12 text-center">
+                <Video className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">No media uploaded yet</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1331,10 +1467,15 @@ export default function ProfilePage() {
                       <div className="flex justify-between items-start">
                         <div>
                           <h4 className="font-semibold text-gray-900">{item.title}</h4>
-                          <p className="text-xs text-gray-500">{new Date(item.created_at).toLocaleDateString()}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                         {editing && (
-                          <button onClick={() => handleDeleteMedia(item.id, item.url)} className="text-red-500 hover:text-red-700">
+                          <button
+                            onClick={() => handleDeleteMedia(item.id, item.url)}
+                            className="text-red-500 hover:text-red-700"
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}

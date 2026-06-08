@@ -14,6 +14,7 @@ export default function AdminDashboard() {
   const [approvedPlayers, setApprovedPlayers] = useState<any[]>([])
   const [pendingEngagements, setPendingEngagements] = useState<any[]>([])
   const [agents, setAgents] = useState<any[]>([])
+  const [scouts, setScouts] = useState<any[]>([])
   const [admins, setAdmins] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -106,6 +107,13 @@ export default function AdminDashboard() {
         .order('created_at', { ascending: false })
       setAgents(agentList || [])
 
+      // Fetch scouts with full details
+      const { data: scoutList } = await supabase
+        .from('scouts')
+        .select('*')
+        .order('created_at', { ascending: false })
+      setScouts(scoutList || [])
+
       // Fetch admins
       const { data: adminList } = await supabase
         .from('admins')
@@ -188,11 +196,23 @@ export default function AdminDashboard() {
 
   // ========== PLAYER APPROVAL WITH NOTIFICATION ==========
   const handleApprovePlayer = async (playerId: string) => {
-    const { data: player } = await supabase
+    const { data: player, error: fetchError } = await supabase
       .from('players')
       .select('name, email, user_id')
       .eq('id', playerId)
       .single()
+
+    if (fetchError) {
+      console.error('Error fetching player:', fetchError)
+      alert('Error fetching player details: ' + fetchError.message)
+      return
+    }
+
+    if (!player || !player.email) {
+      console.error('Player or email not found:', player)
+      alert('Player email not found')
+      return
+    }
 
     const { error } = await supabase
       .from('players')
@@ -201,8 +221,8 @@ export default function AdminDashboard() {
 
     if (error) {
       alert('Error approving player: ' + error.message)
-    } else if (player) {
-      await supabase
+    } else {
+      const { error: notifError } = await supabase
         .from('email_notifications')
         .insert({
           user_id: player.user_id,
@@ -214,7 +234,12 @@ export default function AdminDashboard() {
           created_at: new Date().toISOString()
         })
       
-      alert('Player approved! Notification sent.')
+      if (notifError) {
+        console.error('Notification error:', notifError)
+        alert('Player approved but notification failed to send: ' + notifError.message)
+      } else {
+        alert('Player approved! Notification sent.')
+      }
       fetchData()
       setShowPlayerDetailModal(false)
     }
@@ -222,11 +247,21 @@ export default function AdminDashboard() {
 
   // ========== PLAYER REJECTION WITH NOTIFICATION ==========
   const handleRejectPlayer = async (playerId: string) => {
-    const { data: player } = await supabase
+    const { data: player, error: fetchError } = await supabase
       .from('players')
       .select('name, email, user_id')
       .eq('id', playerId)
       .single()
+
+    if (fetchError) {
+      alert('Error fetching player: ' + fetchError.message)
+      return
+    }
+
+    if (!player || !player.email) {
+      alert('Player email not found')
+      return
+    }
 
     const rejectionReason = prompt('Enter reason for rejection (optional):')
 
@@ -237,7 +272,7 @@ export default function AdminDashboard() {
 
     if (error) {
       alert('Error rejecting player: ' + error.message)
-    } else if (player) {
+    } else {
       await supabase
         .from('email_notifications')
         .insert({
@@ -255,6 +290,146 @@ export default function AdminDashboard() {
       setShowPlayerDetailModal(false)
     }
   }
+
+  // ========== AGENT VERIFICATION WITH NOTIFICATION ==========
+  const handleVerifyAgent = async (agentId: string, status: string) => {
+    const { data: agent, error: fetchError } = await supabase
+      .from('agents')
+      .select('name, email, user_id')
+      .eq('id', agentId)
+      .single()
+
+    if (fetchError) {
+      console.error('Error fetching agent:', fetchError)
+      alert('Error fetching agent details: ' + fetchError.message)
+      return
+    }
+
+    if (!agent || !agent.email) {
+      alert('Agent email not found')
+      return
+    }
+
+    const { error } = await supabase
+      .from('agents')
+      .update({ verification_status: status })
+      .eq('id', agentId)
+
+    if (error) {
+      alert('Error updating agent verification: ' + error.message)
+    } else {
+      const { error: notifError } = await supabase
+        .from('email_notifications')
+        .insert({
+          user_id: agent.user_id,
+          recipient_email: agent.email,
+          recipient_type: 'agent',
+          subject: status === 'verified' ? 'Agent Verification Approved! 🎉' : 'Agent Verification Update',
+          message: status === 'verified' 
+            ? `Dear ${agent.name},\n\nCongratulations! Your agent profile has been verified.\n\nYou can now fully use the platform to:\n✅ Discover and connect with players\n✅ Request engagements\n✅ Access all agent features\n\nBest regards,\nPlayerFynder Team`
+            : `Dear ${agent.name},\n\nYour agent verification status has been updated to ${status.toUpperCase()}.\n\nIf you have any questions, please contact support.\n\nBest regards,\nPlayerFynder Team`,
+          status: 'pending',
+          created_at: new Date().toISOString()
+        })
+      
+      if (notifError) {
+        console.error('Notification error:', notifError)
+        alert(`Agent ${status === 'verified' ? 'verified' : 'updated'}! But notification failed to send.`)
+      } else {
+        alert(`Agent ${status === 'verified' ? 'verified' : 'updated'}! Notification sent.`)
+      }
+      
+      await fetchData()
+      setAgentsTabKey(prev => prev + 1)
+      if (showAgentDetailModal) {
+        setSelectedAgent({ ...selectedAgent, verification_status: status })
+      }
+    }
+  }
+
+  // ========== SCOUT VERIFICATION WITH NOTIFICATION ==========
+// ========== SCOUT VERIFICATION WITH NOTIFICATION ==========
+const handleVerifyScout = async (scoutId: string, status: string) => {
+  console.log('Verifying scout:', scoutId, 'Status:', status);
+  
+  // Get scout details including email
+  const { data: scout, error: fetchError } = await supabase
+    .from('scouts')
+    .select('name, email, user_id')
+    .eq('id', scoutId)
+    .single()
+
+  if (fetchError) {
+    console.error('Error fetching scout:', fetchError)
+    alert('Error fetching scout details: ' + fetchError.message)
+    return
+  }
+
+  console.log('Scout data:', scout);
+
+  if (!scout) {
+    alert('Scout not found')
+    return
+  }
+
+  if (!scout.email) {
+    console.error('Scout email is missing:', scout);
+    alert('Scout email not found. Please update the scout record with an email.')
+    return
+  }
+
+  // Update scout verification status
+  const { error: updateError, data: updateData } = await supabase
+    .from('scouts')
+    .update({ verification_status: status })
+    .eq('id', scoutId)
+    .select()
+
+  console.log('Update result:', { updateError, updateData });
+
+  if (updateError) {
+    alert('Error updating scout verification: ' + updateError.message)
+    return
+  }
+
+  // Send notification to SCOUT
+  const notificationSubject = status === 'verified' 
+    ? 'Scout Account Verified! 🎉' 
+    : 'Scout Account Update'
+
+  const notificationMessage = status === 'verified' 
+    ? `Dear ${scout.name},\n\nCongratulations! Your scout account has been verified.\n\nYou can now:\n✅ Browse and scout players\n✅ Create detailed scouting reports\n✅ Access all scout features\n\nBest regards,\nPlayerFynder Team`
+    : `Dear ${scout.name},\n\nYour scout account status has been updated to ${status.toUpperCase()}.\n\nIf you have any questions, please contact support.\n\nBest regards,\nPlayerFynder Team`
+
+  const { error: notifError, data: notifData } = await supabase
+    .from('email_notifications')
+    .insert({
+      user_id: scout.user_id,
+      recipient_email: scout.email,
+      recipient_type: 'scout',
+      subject: notificationSubject,
+      message: notificationMessage,
+      status: 'pending',
+      created_at: new Date().toISOString()
+    })
+    .select()
+
+  console.log('Notification result:', { notifError, notifData });
+
+  if (notifError) {
+    console.error('Notification error:', notifError)
+    alert(`Scout ${status === 'verified' ? 'verified' : 'updated'}! But notification failed to send: ${notifError.message}`)
+  } else {
+    alert(`Scout ${status === 'verified' ? 'verified' : 'updated'}! Notification sent.`)
+  }
+  
+  // Refresh the scouts list
+  const { data: scoutList } = await supabase
+    .from('scouts')
+    .select('*')
+    .order('created_at', { ascending: false })
+  setScouts(scoutList || [])
+}
 
   const handleRejectEngagement = async () => {
     if (!selectedEngagement) return
@@ -282,7 +457,7 @@ export default function AdminDashboard() {
     if (error) {
       alert('Error rejecting engagement: ' + error.message)
     } else {
-      if (agentRes.data) {
+      if (agentRes.data && agentRes.data.email) {
         await supabase
           .from('email_notifications')
           .insert({
@@ -295,7 +470,7 @@ export default function AdminDashboard() {
             created_at: new Date().toISOString()
           })
       }
-      if (playerRes.data) {
+      if (playerRes.data && playerRes.data.email) {
         await supabase
           .from('email_notifications')
           .insert({
@@ -340,7 +515,7 @@ export default function AdminDashboard() {
       return
     }
 
-    if (agentRes.data) {
+    if (agentRes.data && agentRes.data.email) {
       await supabase
         .from('email_notifications')
         .insert({
@@ -353,7 +528,7 @@ export default function AdminDashboard() {
           created_at: new Date().toISOString()
         })
     }
-    if (playerRes.data) {
+    if (playerRes.data && playerRes.data.email) {
       await supabase
         .from('email_notifications')
         .insert({
@@ -415,7 +590,7 @@ export default function AdminDashboard() {
 
     if (error) {
       alert('Error approving document: ' + error.message)
-    } else if (agentRes.data) {
+    } else if (agentRes.data && agentRes.data.email) {
       await supabase
         .from('email_notifications')
         .insert({
@@ -451,7 +626,7 @@ export default function AdminDashboard() {
 
     if (error) {
       alert('Error rejecting document: ' + error.message)
-    } else if (agentRes.data) {
+    } else if (agentRes.data && agentRes.data.email) {
       await supabase
         .from('email_notifications')
         .insert({
@@ -470,24 +645,6 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleVerifyAgent = async (agentId: string, status: string) => {
-    const { error } = await supabase
-      .from('agents')
-      .update({ verification_status: status })
-      .eq('id', agentId)
-
-    if (error) {
-      alert('Error updating agent verification: ' + error.message)
-    } else {
-      alert(`Agent ${status === 'verified' ? 'verified!' : 'updated.'}`)
-      await fetchData()
-      setAgentsTabKey(prev => prev + 1)
-      if (showAgentDetailModal) {
-        setSelectedAgent({ ...selectedAgent, verification_status: status })
-      }
-    }
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -503,10 +660,10 @@ export default function AdminDashboard() {
   return (
     <div>
       <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent mb-2">Admin Dashboard</h1>
-      <p className="text-gray-600 mb-8">Manage players, agents, and engagement requests</p>
+      <p className="text-gray-600 mb-8">Manage players, agents, scouts, and engagement requests</p>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
         <div className="bg-white rounded-xl shadow p-6 border-l-4 border-red-500">
           <p className="text-gray-500 text-sm">Pending Players</p>
           <p className="text-3xl font-bold text-red-600">{pendingPlayers.length}</p>
@@ -518,6 +675,10 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl shadow p-6 border-l-4 border-blue-500">
           <p className="text-gray-500 text-sm">Total Agents</p>
           <p className="text-3xl font-bold text-blue-600">{agents.length}</p>
+        </div>
+        <div className="bg-white rounded-xl shadow p-6 border-l-4 border-teal-500">
+          <p className="text-gray-500 text-sm">Total Scouts</p>
+          <p className="text-3xl font-bold text-teal-600">{scouts.length}</p>
         </div>
         <div className="bg-white rounded-xl shadow p-6 border-l-4 border-purple-500">
           <p className="text-gray-500 text-sm">Pending Engagements</p>
@@ -557,6 +718,16 @@ export default function AdminDashboard() {
             }`}
           >
             Agents List ({agents.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('scouts')}
+            className={`pb-3 px-1 font-medium transition ${
+              activeTab === 'scouts'
+                ? 'border-b-2 border-teal-600 text-teal-600'
+                : 'text-gray-500 hover:text-teal-600'
+            }`}
+          >
+            Scouts List ({scouts.length})
           </button>
           <button
             onClick={() => setActiveTab('admins')}
@@ -630,7 +801,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Pending Players Tab - With Popup Modal */}
+      {/* Pending Players Tab */}
       {activeTab === 'players' && (
         <div className="space-y-4">
           {pendingPlayers.length === 0 ? (
@@ -655,12 +826,10 @@ export default function AdminDashboard() {
                         <p className="text-gray-600">{player.position} • Age: {player.age} • {player.nationality || 'No nationality'}</p>
                       </div>
                     </div>
-                    
                     <div className="mt-2 text-sm text-gray-500">
                       <span>Applied: {new Date(player.created_at).toLocaleDateString()}</span>
                     </div>
                   </div>
-                  
                   <div className="flex gap-3">
                     <button
                       onClick={() => fetchPlayerDetails(player.id)}
@@ -789,6 +958,61 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Scouts Tab */}
+      {activeTab === 'scouts' && (
+        <div className="space-y-4">
+          {scouts.length === 0 ? (
+            <div className="bg-white rounded-xl shadow p-8 text-center text-gray-500">
+              No scouts registered
+            </div>
+          ) : (
+            scouts.map((scout) => (
+              <div key={scout.id} className="bg-white rounded-xl shadow overflow-hidden border-l-4 border-teal-500">
+                <div className="p-6">
+                  <div className="flex justify-between items-start flex-wrap gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <h3 className="text-xl font-semibold text-gray-900">{scout.name || 'Unnamed Scout'}</h3>
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          scout.verification_status === 'verified' 
+                            ? 'bg-green-100 text-green-700' 
+                            : scout.verification_status === 'rejected'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-yellow-100 text-yellow-700'
+                        }`}>
+                          {scout.verification_status === 'verified' && <CheckCircle className="w-3 h-3" />}
+                          {scout.verification_status === 'rejected' && <XCircle className="w-3 h-3" />}
+                          {scout.verification_status === 'pending' && <Clock className="w-3 h-3" />}
+                          {scout.verification_status || 'pending'}
+                        </span>
+                      </div>
+                      <p className="text-gray-600 mt-1">{scout.club_name || 'Independent Scout'}</p>
+                      <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
+                        {scout.email && <p className="text-gray-500 truncate">📧 {scout.email}</p>}
+                      </div>
+                      <p className="text-gray-500 text-sm mt-2">
+                        Joined: {new Date(scout.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex gap-2">
+                      {scout.verification_status !== 'verified' && (
+                        <button
+                          onClick={() => handleVerifyScout(scout.id, 'verified')}
+                          className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center gap-1"
+                        >
+                          <CheckCircle className="w-3 h-3" />
+                          Verify
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Admins Tab */}
       {activeTab === 'admins' && (
         <div className="space-y-4">
@@ -869,14 +1093,11 @@ export default function AdminDashboard() {
             <div className="p-6 border-b sticky top-0 bg-white">
               <div className="flex justify-between items-center">
                 <h2 className="text-xl font-bold">Player Details</h2>
-                <button onClick={() => setShowPlayerDetailModal(false)} className="text-gray-400 hover:text-gray-600">
-                  ✕
-                </button>
+                <button onClick={() => setShowPlayerDetailModal(false)} className="text-gray-400 hover:text-gray-600">✕</button>
               </div>
             </div>
             
             <div className="p-6 space-y-6">
-              {/* Basic Info */}
               <div className="bg-blue-50 rounded-xl p-4">
                 <h3 className="font-semibold text-blue-900 mb-3">Basic Information</h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
@@ -896,7 +1117,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Performance Ratings */}
               {selectedPlayer.performance_ratings && (
                 <div className="bg-green-50 rounded-xl p-4">
                   <h3 className="font-semibold text-green-900 mb-3">Performance Ratings</h3>
@@ -916,7 +1136,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Achievements */}
               {selectedPlayer.achievements && selectedPlayer.achievements.length > 0 && (
                 <div className="bg-yellow-50 rounded-xl p-4">
                   <h3 className="font-semibold text-yellow-800 mb-3">🏆 Achievements</h3>
@@ -930,7 +1149,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Bio */}
               {selectedPlayer.bio && (
                 <div className="bg-gray-50 rounded-xl p-4">
                   <h3 className="font-semibold text-gray-700 mb-2">Biography</h3>
@@ -938,7 +1156,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Action Buttons inside modal */}
               <div className="flex gap-3 pt-4 border-t">
                 <button
                   onClick={() => {

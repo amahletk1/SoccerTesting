@@ -27,29 +27,6 @@ export default function CompleteProfilePage() {
     }
   }, [])
 
-  // Helper function to send notification to all admins
-  const notifyAllAdmins = async (subject: string, message: string) => {
-    const { data: admins } = await supabase
-      .from('admins')
-      .select('user_id, email')
-
-    if (admins && admins.length > 0) {
-      for (const admin of admins) {
-        await supabase
-          .from('email_notifications')
-          .insert({
-            user_id: admin.user_id,
-            recipient_email: admin.email,
-            recipient_type: 'admin',
-            subject: subject,
-            message: message,
-            status: 'pending',
-            created_at: new Date().toISOString()
-          })
-      }
-    }
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
@@ -82,6 +59,7 @@ export default function CompleteProfilePage() {
             nationality: nationality || null,
             height_cm: height ? parseInt(height) : null,
             weight_kg: weight ? parseInt(weight) : null,
+            email: user.email,
             status: 'pending'
           })
           .eq('user_id', user.id)
@@ -90,6 +68,7 @@ export default function CompleteProfilePage() {
           .from('players')
           .insert([{
             user_id: user.id,
+            email: user.email,
             name: name,
             age: parseInt(age) || null,
             position: position,
@@ -121,10 +100,27 @@ export default function CompleteProfilePage() {
         })
 
       // Send notification to ALL ADMINS
-      await notifyAllAdmins(
-        'New Player Registration - Pending Approval',
-        `A new player "${name}" (${user.email}) has registered and needs approval.\n\nPlease review in the Admin Panel.`
-      )
+      const { data: admins } = await supabase
+        .from('admins')
+        .select('user_id, email')
+
+      if (admins && admins.length > 0) {
+        for (const admin of admins) {
+          if (admin.email) {
+            await supabase
+              .from('email_notifications')
+              .insert({
+                user_id: admin.user_id,
+                recipient_email: admin.email,
+                recipient_type: 'admin',
+                subject: 'New Player Registration - Pending Approval',
+                message: `A new player "${name}" (${user.email}) has registered and needs approval.\n\nPlease review in the Admin Panel.`,
+                status: 'pending',
+                created_at: new Date().toISOString()
+              })
+          }
+        }
+      }
 
       alert('Player profile submitted! Waiting for admin approval.')
       router.push('/dashboard')
@@ -145,6 +141,7 @@ export default function CompleteProfilePage() {
           .update({
             name: name,
             agency: agency || null,
+            email: user.email,
           })
           .eq('user_id', user.id)
       } else {
@@ -152,6 +149,7 @@ export default function CompleteProfilePage() {
           .from('agents')
           .insert([{
             user_id: user.id,
+            email: user.email,
             name: name,
             agency: agency || null,
             verification_status: 'pending',
@@ -179,111 +177,108 @@ export default function CompleteProfilePage() {
         })
 
       // Send notification to ALL ADMINS
-      await notifyAllAdmins(
-        'New Agent Registration - Pending Verification',
-        `A new agent "${name}" (${user.email}) has registered and needs verification.\n\nAgency: ${agency || 'Independent'}\n\nPlease review in the Admin Panel.`
-      )
+      const { data: admins } = await supabase
+        .from('admins')
+        .select('user_id, email')
+
+      if (admins && admins.length > 0) {
+        for (const admin of admins) {
+          if (admin.email) {
+            await supabase
+              .from('email_notifications')
+              .insert({
+                user_id: admin.user_id,
+                recipient_email: admin.email,
+                recipient_type: 'admin',
+                subject: 'New Agent Registration - Pending Verification',
+                message: `A new agent "${name}" (${user.email}) has registered and needs verification.\n\nAgency: ${agency || 'Independent'}\n\nPlease review in the Admin Panel.`,
+                status: 'pending',
+                created_at: new Date().toISOString()
+              })
+          }
+        }
+      }
 
       alert('Agent profile created!')
       router.push('/dashboard')
     }
 
     // ========== SCOUT REGISTRATION ==========
-// ========== SCOUT REGISTRATION ==========
-// ========== SCOUT REGISTRATION ==========
-else if (role === 'scout') {
-  console.log('=== SCOUT REGISTRATION START ===');
-  console.log('User ID:', user.id);
-  console.log('User Email:', user.email);
-  console.log('Name:', name);
-  console.log('Club Name:', clubName);
+    else if (role === 'scout') {
+      const { data: existingScout } = await supabase
+        .from('scouts')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle()
 
-  const { data: existingScout, error: checkError } = await supabase
-    .from('scouts')
-    .select('id')
-    .eq('user_id', user.id)
-    .maybeSingle()
+      let result
+      if (existingScout) {
+        result = await supabase
+          .from('scouts')
+          .update({
+            name: name,
+            club_name: clubName || null,
+            email: user.email,
+          })
+          .eq('user_id', user.id)
+      } else {
+        result = await supabase
+          .from('scouts')
+          .insert([{
+            user_id: user.id,
+            email: user.email,
+            name: name,
+            club_name: clubName || null,
+            created_at: new Date().toISOString()
+          }])
+      }
 
-  console.log('Existing scout:', existingScout);
-  console.log('Check error:', checkError);
+      if (result.error) {
+        setError('Failed to save scout profile: ' + result.error.message)
+        setLoading(false)
+        return
+      }
 
-  let result
-  if (existingScout) {
-    console.log('Updating existing scout...');
-    result = await supabase
-      .from('scouts')
-      .update({
-        name: name,
-        club_name: clubName || null,
-      })
-      .eq('user_id', user.id)
-  } else {
-    console.log('Inserting new scout...');
-    result = await supabase
-      .from('scouts')
-      .insert([{
-        user_id: user.id,
-        name: name,
-        club_name: clubName || null,
-        created_at: new Date().toISOString()
-      }])
-  }
-
-  console.log('Insert/Update result:', result);
-  console.log('Error:', result.error);
-
-  if (result.error) {
-    console.error('SCOUT SAVE ERROR:', result.error);
-    setError('Failed to save scout profile: ' + result.error.message)
-    setLoading(false)
-    return
-  }
-
-  console.log('Scout saved successfully!');
-
-  // Send notification to SCOUT
-  const scoutNotif = await supabase
-    .from('email_notifications')
-    .insert({
-      user_id: user.id,
-      recipient_email: user.email,
-      recipient_type: 'scout',
-      subject: 'Scout Profile Created',
-      message: `Dear ${name},\n\nYour scout profile has been created successfully!\n\nBest regards,\nPlayerFynder Team`,
-      status: 'pending',
-      created_at: new Date().toISOString()
-    })
-  
-  console.log('Scout notification result:', scoutNotif);
-
-  // Send notification to ALL ADMINS
-  const { data: admins } = await supabase
-    .from('admins')
-    .select('user_id, email')
-
-  console.log('Admins found:', admins);
-
-  if (admins && admins.length > 0) {
-    for (const admin of admins) {
-      const adminNotif = await supabase
+      // Send notification to SCOUT
+      await supabase
         .from('email_notifications')
         .insert({
-          user_id: admin.user_id,
-          recipient_email: admin.email,
-          recipient_type: 'admin',
-          subject: 'New Scout Registration',
-          message: `A new scout "${name}" (${user.email}) has registered.\n\nClub: ${clubName || 'Independent'}`,
+          user_id: user.id,
+          recipient_email: user.email,
+          recipient_type: 'scout',
+          subject: 'Scout Profile Created',
+          message: `Dear ${name},\n\nYour scout profile has been created successfully!\n\nYou can now browse players and create scouting reports.\n\nBest regards,\nPlayerFynder Team`,
           status: 'pending',
           created_at: new Date().toISOString()
         })
-      console.log(`Admin notification for ${admin.email}:`, adminNotif);
-    }
-  }
 
-  alert('Scout profile created!')
-  window.location.href = '/dashboard/scout'
-  return
-}
+      // Send notification to ALL ADMINS
+      const { data: admins } = await supabase
+        .from('admins')
+        .select('user_id, email')
+
+      if (admins && admins.length > 0) {
+        for (const admin of admins) {
+          if (admin.email) {
+            await supabase
+              .from('email_notifications')
+              .insert({
+                user_id: admin.user_id,
+                recipient_email: admin.email,
+                recipient_type: 'admin',
+                subject: 'New Scout Registration',
+                message: `A new scout "${name}" (${user.email}) has registered.\n\nClub: ${clubName || 'Independent'}\n\nPlease review their profile.`,
+                status: 'pending',
+                created_at: new Date().toISOString()
+              })
+          }
+        }
+      }
+
+      alert('Scout profile created!')
+      window.location.href = '/dashboard/scout'
+      return
+    }
 
     setLoading(false)
   }
