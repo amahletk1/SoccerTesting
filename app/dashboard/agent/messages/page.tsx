@@ -12,7 +12,9 @@ export default function AgentMessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [agentId, setAgentId] = useState<string>('')
+  const [currentUserId, setCurrentUserId] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({})
   const router = useRouter()
   const supabase = createClient()
 
@@ -20,15 +22,58 @@ export default function AgentMessagesPage() {
     fetchAgentAndConversations()
   }, [])
 
+  // Subscribe to new messages for real-time unread updates
+  useEffect(() => {
+    if (!agentId) return
+
+    const channel = supabase
+      .channel('messages-updates')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'messages' }, 
+        (payload) => {
+          const newMessage = payload.new
+          // If message is not from current user and belongs to one of our conversations
+          if (newMessage.sender_id !== currentUserId) {
+            // Increment unread count for that conversation
+            setUnreadCounts(prev => ({
+              ...prev,
+              [newMessage.conversation_id]: (prev[newMessage.conversation_id] || 0) + 1
+            }))
+            // Refresh conversations to update last message
+            if (agentId) fetchConversations(agentId)
+          }
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [agentId, currentUserId])
+
   const fetchAgentAndConversations = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    if (!user) { 
+      router.push('/login')
+      return 
+    }
+    
+    setCurrentUserId(user.id)
 
-    const { data: agent } = await supabase.from('agents').select('id').eq('user_id', user.id).single()
-    if (!agent) { router.push('/dashboard'); return }
+    const { data: agent } = await supabase
+      .from('agents')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+    
+    if (!agent) { 
+      router.push('/dashboard')
+      return 
+    }
 
     setAgentId(agent.id)
     await fetchConversations(agent.id)
+    await fetchUnreadCounts(agent.id)
   }
 
   const fetchConversations = async (agentId: string) => {
@@ -63,6 +108,55 @@ export default function AgentMessagesPage() {
     setLoading(false)
   }
 
+  const fetchUnreadCounts = async (agentId: string) => {
+    // Get all conversations for this agent
+    const { data: convs } = await supabase
+      .from('conversations')
+      .select('id')
+      .eq('agent_id', agentId)
+
+    if (!convs) return
+
+    const counts: Record<string, number> = {}
+    
+    for (const conv of convs) {
+      // Count unread messages where sender is player (not agent)
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', conv.id)
+        .eq('is_read', false)
+        .neq('sender_id', currentUserId)
+      
+      if (count && count > 0) {
+        counts[conv.id] = count
+      }
+    }
+    
+    setUnreadCounts(counts)
+  }
+
+  const markConversationAsRead = async (conversationId: string) => {
+    // Mark all messages in this conversation as read
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', currentUserId)
+      .eq('is_read', false)
+    
+    // Update local unread count
+    setUnreadCounts(prev => ({
+      ...prev,
+      [conversationId]: 0
+    }))
+  }
+
+  const handleSelectConversation = async (conversation: any) => {
+    setSelectedConversation(conversation)
+    await markConversationAsRead(conversation.id)
+  }
+
   const getEngagementBadge = (status: string) => {
     switch (status) {
       case 'approved': return { text: 'Active', color: 'bg-green-100 text-green-700', icon: CheckCircle }
@@ -75,6 +169,8 @@ export default function AgentMessagesPage() {
   const filteredConversations = conversations.filter(conv => 
     conv.player?.name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const totalUnread = Object.values(unreadCounts).reduce((a, b) => a + b, 0)
 
   if (loading) {
     return (
@@ -89,12 +185,19 @@ export default function AgentMessagesPage() {
       <div className="flex h-full bg-white rounded-xl shadow overflow-hidden">
         {/* Sidebar */}
         <div className="w-80 border-r flex flex-col">
-          <div className="p-4 border-b bg-gradient-to-r from-blue-600 to-blue-700">
-            <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Messages
-            </h2>
-            <p className="text-blue-100 text-xs mt-1">{conversations.length} conversations</p>
+          <div className="p-4 border-b bg-gradient-to-r from-red-600 to-red-700">
+            <div className="flex justify-between items-center">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Messages
+              </h2>
+              {totalUnread > 0 && (
+                <span className="bg-yellow-400 text-red-900 text-xs font-bold px-2 py-1 rounded-full">
+                  {totalUnread} new
+                </span>
+              )}
+            </div>
+            <p className="text-red-100 text-xs mt-1">{conversations.length} conversations</p>
           </div>
           
           <div className="p-3 border-b">
@@ -105,7 +208,7 @@ export default function AgentMessagesPage() {
                 placeholder="Search by player name..." 
                 value={searchTerm} 
                 onChange={(e) => setSearchTerm(e.target.value)} 
-                className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500" 
+                className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-red-500" 
               />
             </div>
           </div>
@@ -115,7 +218,7 @@ export default function AgentMessagesPage() {
               <div className="text-center py-12 text-gray-500">
                 <MessageSquare className="w-12 h-12 mx-auto mb-3 text-gray-300" />
                 <p className="text-sm">No conversations yet</p>
-                <Link href="/dashboard/players" className="inline-block mt-4 text-blue-600 text-sm hover:underline">
+                <Link href="/dashboard/players" className="inline-block mt-4 text-red-600 text-sm hover:underline">
                   Browse Players →
                 </Link>
               </div>
@@ -123,12 +226,14 @@ export default function AgentMessagesPage() {
               filteredConversations.map((conv) => {
                 const badge = getEngagementBadge(conv.engagement?.status)
                 const BadgeIcon = badge.icon
+                const unreadCount = unreadCounts[conv.id] || 0
+                
                 return (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
-                    className={`w-full text-left p-4 border-b hover:bg-gray-50 transition ${
-                      selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                    onClick={() => handleSelectConversation(conv)}
+                    className={`w-full text-left p-4 border-b hover:bg-gray-50 transition relative ${
+                      selectedConversation?.id === conv.id ? 'bg-red-50 border-l-4 border-l-red-500' : ''
                     }`}
                   >
                     <div className="flex items-start gap-3">
@@ -148,7 +253,9 @@ export default function AgentMessagesPage() {
                         </div>
                         <p className="text-xs text-gray-500 mt-0.5">{conv.player?.position}</p>
                         <div className="flex items-center justify-between mt-1">
-                          <p className="text-sm text-gray-600 truncate max-w-[150px]">{conv.last_message}</p>
+                          <p className={`text-sm truncate max-w-[150px] ${unreadCount > 0 ? 'font-semibold text-gray-900' : 'text-gray-600'}`}>
+                            {conv.last_message}
+                          </p>
                           <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full ${badge.color}`}>
                             <BadgeIcon className="w-3 h-3" />
                             {badge.text}
@@ -156,6 +263,13 @@ export default function AgentMessagesPage() {
                         </div>
                       </div>
                     </div>
+                    
+                    {/* Unread Message Badge */}
+                    {unreadCount > 0 && (
+                      <div className="absolute top-4 right-4 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </div>
+                    )}
                   </button>
                 )
               })
@@ -170,9 +284,16 @@ export default function AgentMessagesPage() {
               conversationId={selectedConversation.id}
               agentId={agentId}
               playerId={selectedConversation.player_id}
+              currentUserId={currentUserId}
+              userType="agent"
               engagementStatus={selectedConversation.engagement?.status}
               restrictionLevel={selectedConversation.engagement?.restriction_level}
               onClose={() => setSelectedConversation(null)}
+              onMessageRead={() => {
+                // Refresh unread counts when messages are read
+                fetchUnreadCounts(agentId)
+                fetchConversations(agentId)
+              }}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-center p-8">

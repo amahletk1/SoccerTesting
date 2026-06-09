@@ -10,7 +10,7 @@ import {
   ShieldCheck, UserCircle, Video, Target, CheckCircle,
   XCircle, MessageSquare, Upload, Clock, Search, Edit3,
   Heart, Trophy, Briefcase, DollarSign, Zap, Flame, UserPlus,
-  Mail
+  Mail, FileText
 } from 'lucide-react'
 
 export default function DashboardPage() {
@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const [profileViews, setProfileViews] = useState(0)
   const [shortlistCount, setShortlistCount] = useState(0)
   const [myAgent, setMyAgent] = useState<any>(null)
+  const [recommendations, setRecommendations] = useState<any[]>([])
   
   // Agent specific state
   const [agentStats, setAgentStats] = useState({
@@ -112,6 +113,7 @@ export default function DashboardPage() {
           setProfile(agent)
           await fetchAgentData(agent.id)
           await fetchAnalyticsData(agent.id)
+          await fetchRecommendations(agent.id)
           setLoading(false)
           return
         }
@@ -124,6 +126,41 @@ export default function DashboardPage() {
     }
     getUser()
   }, [])
+
+  const fetchRecommendations = async (agentId: string) => {
+    const { data: recsData } = await supabase
+      .from('scout_recommendations')
+      .select(`
+        *,
+        scout:scouts(id, name, club_name),
+        player:players(id, name, position, age, nationality, profile_picture),
+        report:scouting_reports(overall_rating, recommendation)
+      `)
+      .eq('agent_id', agentId)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false })
+    
+    console.log('Recommendations fetched:', recsData)
+    setRecommendations(recsData || [])
+  }
+
+  const handleAcceptRecommendation = async (recommendationId: string, playerId: string) => {
+    await supabase
+      .from('scout_recommendations')
+      .update({ status: 'accepted', read_at: new Date().toISOString() })
+      .eq('id', recommendationId)
+    
+    router.push(`/dashboard/players/${playerId}?engage=true`)
+  }
+
+  const handleDeclineRecommendation = async (recommendationId: string) => {
+    await supabase
+      .from('scout_recommendations')
+      .update({ status: 'declined', read_at: new Date().toISOString() })
+      .eq('id', recommendationId)
+    
+    setRecommendations(recommendations.filter(r => r.id !== recommendationId))
+  }
 
   const fetchMyAgent = async (agentId: string) => {
     if (!agentId) return
@@ -328,6 +365,107 @@ export default function DashboardPage() {
             <p className="text-xs text-gray-500">Profile Views</p>
           </div>
         </div>
+
+        {/* Scout Recommendations Section */}
+        {recommendations.length > 0 && (
+          <div className="bg-white rounded-xl shadow p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <UserPlus className="w-5 h-5 text-green-600" />
+              <h2 className="text-xl font-semibold">Scout Recommendations</h2>
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {recommendations.length} new
+              </span>
+            </div>
+            <div className="space-y-4">
+              {recommendations.map((rec) => (
+                <div key={rec.id} className="border rounded-lg p-4 hover:shadow-md transition">
+                  <div className="flex justify-between items-start flex-wrap gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3">
+                        {rec.player?.profile_picture ? (
+                          <img src={rec.player.profile_picture} className="w-12 h-12 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center">
+                            <Users className="w-6 h-6 text-gray-500" />
+                          </div>
+                        )}
+                        <div>
+                          <h3 className="font-bold text-lg">{rec.player?.name || 'Unknown Player'}</h3>
+                          <p className="text-sm text-gray-500">
+                            {rec.player?.position || 'Unknown'} • Age {rec.player?.age || '?'} • {rec.player?.nationality || 'Unknown'}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-2">
+                        Scouted by: {rec.scout?.name || 'Unknown Scout'} ({rec.scout?.club_name || 'Independent Scout'})
+                      </p>
+                      {rec.report?.recommendation && (
+                        <p className="text-sm text-gray-600 mt-2 italic">
+                          "{rec.report.recommendation}"
+                        </p>
+                      )}
+                      {rec.message && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          Scout note: {rec.message}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-center">
+                      <div className="w-14 h-14 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <span className="text-xl font-bold text-yellow-700">
+                          {rec.report?.overall_rating || '?'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500">Rating</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-3 mt-4 pt-3 border-t">
+                    <Link
+                      href={`/dashboard/players/${rec.player_id}`}
+                      className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <Eye className="w-3 h-3" />
+                      View Player
+                    </Link>
+                    {rec.report_id && (
+                      <Link
+                        href={`/dashboard/scouting/reports/${rec.report_id}`}
+                        className="text-sm text-green-600 hover:underline flex items-center gap-1"
+                      >
+                        <FileText className="w-3 h-3" />
+                        Full Report
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => handleAcceptRecommendation(rec.id, rec.player_id)}
+                      className="text-sm bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 flex items-center gap-1"
+                    >
+                      <CheckCircle className="w-3 h-3" />
+                      Request Engagement
+                    </button>
+                    <button
+                      onClick={() => handleDeclineRecommendation(rec.id)}
+                      className="text-sm bg-gray-200 text-gray-700 px-3 py-1 rounded hover:bg-gray-300 flex items-center gap-1"
+                    >
+                      <XCircle className="w-3 h-3" />
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* If no recommendations */}
+        {recommendations.length === 0 && (
+          <div className="bg-white rounded-xl shadow p-6 text-center">
+            <UserPlus className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">No scout recommendations yet</p>
+            <p className="text-sm text-gray-400 mt-1">When scouts recommend players, they'll appear here</p>
+          </div>
+        )}
 
         {/* Analytics Row - Engagement Trend & Success Rate */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -11,6 +11,7 @@ export default function PlayerMessagesPage() {
   const [selectedConversation, setSelectedConversation] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [playerId, setPlayerId] = useState<string>('')
+  const [currentUserId, setCurrentUserId] = useState<string>('')
   const [searchTerm, setSearchTerm] = useState('')
   const router = useRouter()
   const supabase = createClient()
@@ -21,10 +22,23 @@ export default function PlayerMessagesPage() {
 
   const fetchPlayerAndConversations = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { router.push('/login'); return }
+    if (!user) { 
+      router.push('/login')
+      return 
+    }
+    
+    setCurrentUserId(user.id)
 
-    const { data: player } = await supabase.from('players').select('id').eq('user_id', user.id).single()
-    if (!player) { router.push('/dashboard'); return }
+    const { data: player } = await supabase
+      .from('players')
+      .select('id')
+      .eq('user_id', user.id)
+      .single()
+    
+    if (!player) { 
+      router.push('/dashboard')
+      return 
+    }
 
     setPlayerId(player.id)
     await fetchConversations(player.id)
@@ -37,7 +51,7 @@ export default function PlayerMessagesPage() {
       .from('conversations')
       .select(`
         *,
-        agent:agents(id, name, agency_name, profile_picture),
+        agent:agents(id, name, agency, profile_picture),
         engagement:engagements(status, restriction_level)
       `)
       .eq('player_id', playerId)
@@ -142,7 +156,7 @@ export default function PlayerMessagesPage() {
                             <span className="text-xs text-gray-400">{new Date(conv.last_message_time).toLocaleDateString()}</span>
                           )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">{conv.agent?.agency_name}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{conv.agent?.agency}</p>
                         <div className="flex items-center justify-between mt-1">
                           <p className="text-sm text-gray-600 truncate max-w-[150px]">{conv.last_message}</p>
                           <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full ${badge.color}`}>
@@ -159,13 +173,15 @@ export default function PlayerMessagesPage() {
           </div>
         </div>
 
-        {/* Chat Area */}
+        {/* Chat Area - FIXED: Added missing props */}
         <div className="flex-1">
           {selectedConversation ? (
             <Chat
               conversationId={selectedConversation.id}
               agentId={selectedConversation.agent_id}
               playerId={playerId}
+              currentUserId={currentUserId}
+              userType="player"
               engagementStatus={selectedConversation.engagement?.status}
               restrictionLevel={selectedConversation.engagement?.restriction_level}
               onClose={() => setSelectedConversation(null)}

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { 
   ArrowLeft, Save, Target, Zap, Shield, Activity,
-  Heart, Eye, Award, CheckCircle, XCircle
+  Heart, Eye, Award, CheckCircle, XCircle, Send, Building2, X
 } from 'lucide-react'
 
 interface CreateReportPageProps {
@@ -17,9 +17,17 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
   const [playerId, setPlayerId] = useState<string | null>(null)
   const [player, setPlayer] = useState<any>(null)
   const [scoutId, setScoutId] = useState<string | null>(null)
+  const [scoutName, setScoutName] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  
+  // Agent selection modal
+  const [showAgentModal, setShowAgentModal] = useState(false)
+  const [agents, setAgents] = useState<any[]>([])
+  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
+  const [recommendMessage, setRecommendMessage] = useState('')
+  const [savedReportId, setSavedReportId] = useState<string | null>(null)
   
   const [formData, setFormData] = useState({
     speed_rating: 5,
@@ -64,7 +72,7 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
     
     const { data: scout } = await supabase
       .from('scouts')
-      .select('id')
+      .select('id, name')
       .eq('user_id', user.id)
       .single()
     
@@ -74,6 +82,7 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
     }
     
     setScoutId(scout.id)
+    setScoutName(scout.name || 'A scout')
     
     // Get player details
     const { data: playerData } = await supabase
@@ -83,13 +92,22 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
       .single()
     
     setPlayer(playerData)
+    
+    // Fetch agents for selection
+    const { data: agentsData } = await supabase
+      .from('agents')
+      .select('id, name, agency, specializations')
+      .eq('verification_status', 'verified')
+      .limit(30)
+    
+    if (agentsData) setAgents(agentsData)
+    
     setLoading(false)
   }
 
   const handleRatingChange = (field: string, value: number) => {
     setFormData({ ...formData, [field]: value })
     
-    // Auto-calculate overall rating as average of all skills
     if (['speed_rating', 'shooting_rating', 'passing_rating', 'dribbling_rating', 'defending_rating', 'physical_rating'].includes(field)) {
       const avg = Math.round(
         (formData.speed_rating + 
@@ -103,12 +121,23 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
     }
   }
 
+  const getRecommendationLabel = (rec: string) => {
+    switch (rec) {
+      case 'sign_immediately': return 'Sign Immediately'
+      case 'trial_recommended': return 'Trial Recommended'
+      case 'monitor_further': return 'Monitor Further'
+      case 'not_recommended': return 'Not Recommended'
+      default: return rec
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
     
-    const { error } = await supabase
+    // Save the scouting report
+    const { data: report, error: insertError } = await supabase
       .from('scouting_reports')
       .insert({
         scout_id: scoutId,
@@ -126,24 +155,89 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
         notes: formData.notes,
         created_at: new Date().toISOString()
       })
+      .select()
+      .single()
     
-    if (error) {
-      setError(error.message)
-    } else {
-      alert('Scouting report saved successfully!')
-      router.push('/dashboard/scouting/reports')
+    if (insertError) {
+      setError(insertError.message)
+      setSaving(false)
+      return
     }
+
+    setSavedReportId(report.id)
+    
+    // Show agent selection modal instead of sending to all agents
+    setShowAgentModal(true)
     setSaving(false)
   }
 
-  const getRecommendationColor = (rec: string) => {
-    switch (rec) {
-      case 'sign_immediately': return 'text-green-600 bg-green-50 border-green-200'
-      case 'trial_recommended': return 'text-blue-600 bg-blue-50 border-blue-200'
-      case 'monitor_further': return 'text-yellow-600 bg-yellow-50 border-yellow-200'
-      case 'not_recommended': return 'text-red-600 bg-red-50 border-red-200'
-      default: return 'text-gray-600 bg-gray-50 border-gray-200'
+  const sendRecommendations = async () => {
+    if (!savedReportId || selectedAgents.length === 0) return
+    
+    setSaving(true)
+    
+    const recommendationLabel = getRecommendationLabel(formData.recommendation)
+    let successCount = 0
+    
+    for (const agentId of selectedAgents) {
+      // Get agent details
+      const { data: agent } = await supabase
+        .from('agents')
+        .select('id, name, email, user_id')
+        .eq('id', agentId)
+        .single()
+      
+      if (agent) {
+        // Create email notification
+        await supabase
+          .from('email_notifications')
+          .insert({
+            user_id: agent.user_id,
+            recipient_email: agent.email,
+            recipient_type: 'agent',
+            subject: `🔍 New Scouting Report: ${player?.name}`,
+            message: `Dear ${agent.name},\n\nScout ${scoutName} has just completed a scouting report on ${player?.name} (${player?.position}).\n\n📊 Overall Rating: ${formData.overall_rating}/10\n💡 Recommendation: ${recommendationLabel}\n\nScout's Note: ${recommendMessage || 'No additional notes'}\n\nLog in to your dashboard to view the full report and consider engaging this player.\n\nBest regards,\nPlayerFynder Team`,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          })
+        
+        // Create scout recommendation
+        await supabase
+          .from('scout_recommendations')
+          .insert({
+            scout_id: scoutId,
+            agent_id: agent.id,
+            player_id: playerId,
+            report_id: savedReportId,
+            message: recommendMessage || `I recommend ${player?.name} (Rating: ${formData.overall_rating}/10) - ${recommendationLabel}`,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          })
+        
+        successCount++
+      }
     }
+    
+    alert(`Scouting report saved! Recommended to ${successCount} agent(s).`)
+    setShowAgentModal(false)
+    setSelectedAgents([])
+    setRecommendMessage('')
+    router.push('/dashboard/scouting/reports')
+    setSaving(false)
+  }
+
+  const toggleAgent = (agentId: string) => {
+    if (selectedAgents.includes(agentId)) {
+      setSelectedAgents(selectedAgents.filter(id => id !== agentId))
+    } else {
+      setSelectedAgents([...selectedAgents, agentId])
+    }
+  }
+
+  const skipRecommendation = () => {
+    alert('Scouting report saved! You can recommend to agents later from your reports page.')
+    router.push('/dashboard/scouting/reports')
+    setShowAgentModal(false)
   }
 
   if (loading) {
@@ -396,6 +490,99 @@ export default function CreateScoutingReportPage({ params }: CreateReportPagePro
           </button>
         </div>
       </form>
+
+      {/* Agent Selection Modal */}
+      {showAgentModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="p-6 border-b sticky top-0 bg-white">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold">Recommend Player to Agents</h2>
+                <button 
+                  onClick={skipRecommendation}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-500">Player</p>
+                <p className="font-semibold text-lg">{player?.name}</p>
+                <div className="flex items-center gap-1 mt-2">
+                  <span className="text-yellow-600 font-semibold">Rating: {formData.overall_rating}/10</span>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-green-600">{getRecommendationLabel(formData.recommendation)}</span>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Message to Agents (Optional)</label>
+                <textarea
+                  value={recommendMessage}
+                  onChange={(e) => setRecommendMessage(e.target.value)}
+                  placeholder="Add a personal note about why this player is worth considering..."
+                  className="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  Select Agents ({selectedAgents.length} selected)
+                </label>
+                <div className="border rounded-lg max-h-60 overflow-y-auto divide-y">
+                  {agents.length === 0 ? (
+                    <div className="p-4 text-center text-gray-500">No verified agents available</div>
+                  ) : (
+                    agents.map((agent) => (
+                      <label key={agent.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={selectedAgents.includes(agent.id)}
+                          onChange={() => toggleAgent(agent.id)}
+                          className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-gray-900">{agent.name}</p>
+                          <p className="text-sm text-gray-500">{agent.agency || 'Independent Agent'}</p>
+                        </div>
+                        {agent.specializations && agent.specializations.length > 0 && (
+                          <div className="flex gap-1">
+                            {agent.specializations.slice(0, 2).map((spec: string) => (
+                              <span key={spec} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </label>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+              <button
+                onClick={skipRecommendation}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-100"
+              >
+                Skip (Save without recommending)
+              </button>
+              <button
+                onClick={sendRecommendations}
+                disabled={selectedAgents.length === 0 || saving}
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {saving ? 'Sending...' : `Send to ${selectedAgents.length} Agent(s)`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

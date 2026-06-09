@@ -18,6 +18,9 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
   const [notificationCount, setNotificationCount] = useState(0)
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
+  const [userId, setUserId] = useState<string>('')
+  const [userEmail, setUserEmail] = useState<string>('')
   const router = useRouter()
   const supabase = createClient()
 
@@ -31,15 +34,12 @@ export default function DashboardLayout({
           return
         }
 
-        // Fetch notification count
-        const { count } = await supabase
-          .from('email_notifications')
-          .select('*', { count: 'exact', head: true })
-          .eq('recipient_email', user.email)
-          .eq('status', 'pending')
-        
-        setNotificationCount(count || 0)
+        setUserId(user.id)
+        setUserEmail(user.email || '')
 
+        // Fetch notification count
+        await fetchNotificationCount(user.email || '')
+        
         // Check if user is admin
         const { data: adminData } = await supabase
           .from('admins')
@@ -50,6 +50,7 @@ export default function DashboardLayout({
         if (adminData) {
           setUserRole('admin')
           setUserName('Admin')
+          await fetchUnreadMessagesCount(user.id, 'admin')
           setLoading(false)
           return
         }
@@ -64,6 +65,7 @@ export default function DashboardLayout({
         if (player) {
           setUserRole('player')
           setUserName(player.name || user.email?.split('@')[0] || 'Player')
+          await fetchUnreadMessagesCount(player.id, 'player')
           setLoading(false)
           return
         }
@@ -78,6 +80,7 @@ export default function DashboardLayout({
         if (agent) {
           setUserRole('agent')
           setUserName(agent.name || user.email?.split('@')[0] || 'Agent')
+          await fetchUnreadMessagesCount(agent.id, 'agent')
           setLoading(false)
           return
         }
@@ -107,6 +110,132 @@ export default function DashboardLayout({
 
     checkUser()
   }, [router, supabase])
+
+const fetchNotificationCount = async (email: string) => {
+  // Count only notifications with status 'pending' (unread)
+  const { count } = await supabase
+    .from('email_notifications')
+    .select('*', { count: 'exact', head: true })
+    .eq('recipient_email', email)
+    .eq('status', 'pending')  // Make sure this is correct
+  
+  setNotificationCount(count || 0)
+}
+
+  const fetchUnreadMessagesCount = async (userId: string, role: string) => {
+    try {
+      // Get conversations based on role
+      let conversationsQuery
+      
+      if (role === 'agent') {
+        conversationsQuery = supabase
+          .from('conversations')
+          .select('id')
+          .eq('agent_id', userId)
+      } else if (role === 'player') {
+        conversationsQuery = supabase
+          .from('conversations')
+          .select('id')
+          .eq('player_id', userId)
+      } else {
+        setUnreadMessagesCount(0)
+        return
+      }
+
+      const { data: conversations } = await conversationsQuery
+      
+      if (!conversations || conversations.length === 0) {
+        setUnreadMessagesCount(0)
+        return
+      }
+
+      const conversationIds = conversations.map(c => c.id)
+
+      // Count unread messages where user is NOT the sender
+      const { count } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .in('conversation_id', conversationIds)
+        .eq('is_read', false)
+        .neq('sender_id', userId)
+
+      setUnreadMessagesCount(count || 0)
+    } catch (error) {
+      console.error('Error fetching unread messages:', error)
+      setUnreadMessagesCount(0)
+    }
+  }
+
+  // Subscribe to real-time message updates
+  useEffect(() => {
+    if (!userId || !userRole) return
+
+    // Subscribe to new messages
+    const messageChannel = supabase
+      .channel('unread-messages')
+      .on('postgres_changes', 
+        { event: 'INSERT', schema: 'public', table: 'messages' }, 
+        () => {
+          if (userRole === 'agent') {
+            fetchUnreadMessagesCount(userId, 'agent')
+          } else if (userRole === 'player') {
+            fetchUnreadMessagesCount(userId, 'player')
+          }
+        }
+      )
+      .subscribe()
+
+    // Subscribe to message updates (when messages are marked as read)
+    const messageUpdateChannel = supabase
+      .channel('message-updates')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'messages' }, 
+        () => {
+          if (userRole === 'agent') {
+            fetchUnreadMessagesCount(userId, 'agent')
+          } else if (userRole === 'player') {
+            fetchUnreadMessagesCount(userId, 'player')
+          }
+        }
+      )
+      .subscribe()
+
+    // Subscribe to notification updates
+    const notificationChannel = supabase
+      .channel('notification-updates')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'email_notifications' }, 
+        () => {
+          fetchNotificationCount(userEmail)
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(messageChannel)
+      supabase.removeChannel(messageUpdateChannel)
+      supabase.removeChannel(notificationChannel)
+    }
+  }, [userId, userRole, userEmail])
+
+  // Also refresh counts when the page becomes visible again
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (userRole === 'agent') {
+          fetchUnreadMessagesCount(userId, 'agent')
+        } else if (userRole === 'player') {
+          fetchUnreadMessagesCount(userId, 'player')
+        }
+        fetchNotificationCount(userEmail)
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [userId, userRole, userEmail])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -259,7 +388,7 @@ export default function DashboardLayout({
             <>
               <Link 
                 href="/dashboard/agent/profile" 
-                className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition border-l-4 border-blue-500 bg-blue-50/30"
+                className="flex items-center px-6 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition"
               >
                 <UserCircle className="w-5 h-5 mr-3" />
                 My Profile
@@ -270,6 +399,11 @@ export default function DashboardLayout({
               >
                 <MessageSquare className="w-5 h-5 mr-3" />
                 Messages
+                {unreadMessagesCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                  </span>
+                )}
               </Link>
               <Link 
                 href="/dashboard/players" 
@@ -318,6 +452,11 @@ export default function DashboardLayout({
               >
                 <MessageSquare className="w-5 h-5 mr-3" />
                 Messages
+                {unreadMessagesCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
+                  </span>
+                )}
               </Link>
               <Link 
                 href="/dashboard/agents" 
