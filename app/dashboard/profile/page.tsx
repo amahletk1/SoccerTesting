@@ -8,8 +8,53 @@ import {
   Save, Edit2, X, Video, Upload, Trash2, User, CheckCircle, Clock,
   Plus, Trash, Target, Zap, Shield, Activity as ActivityIcon,
   Briefcase, Calendar as CalendarIcon, DollarSign, Phone, Link as LinkIcon,
-  Globe
+  Globe, FileText
 } from 'lucide-react'
+
+// All countries list
+const countries = [
+  'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda',
+  'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain',
+  'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan',
+  'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria',
+  'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Canada',
+  'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros',
+  'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic',
+  'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt',
+  'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia',
+  'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana',
+  'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti',
+  'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland',
+  'Israel', 'Italy', 'Ivory Coast', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan',
+  'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho',
+  'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar',
+  'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Mauritania',
+  'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro',
+  'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands',
+  'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea', 'North Macedonia',
+  'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama', 'Papua New Guinea',
+  'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania',
+  'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent',
+  'Samoa', 'San Marino', 'Sao Tome and Principe', 'Saudi Arabia', 'Senegal',
+  'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia',
+  'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 'South Sudan',
+  'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria',
+  'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga',
+  'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda',
+  'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay',
+  'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen',
+  'Zambia', 'Zimbabwe'
+]
+
+// Positions list
+const positions = [
+  'Forward',
+  'False 9',
+  'Winger',
+  'Midfielder',
+  'Defender',
+  'Goalkeeper'
+]
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<any>(null)
@@ -19,6 +64,7 @@ export default function ProfilePage() {
   const [careerHistory, setCareerHistory] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadingCV, setUploadingCV] = useState(false)
   const [editing, setEditing] = useState(false)
   const [activeTab, setActiveTab] = useState('profile')
   const [savingSection, setSavingSection] = useState<string | null>(null)
@@ -40,7 +86,16 @@ export default function ProfilePage() {
     agent_name: '',
     agent_contact: '',
     market_value: '',
-    bio: ''
+    bio: '',
+    // New fields
+    highest_level_played: '',
+    national_team_representation: '',
+    transfermarkt_url: '',
+    scouting_platform_links: [] as string[],
+    agent_history: '',
+    trials_history: '',
+    cv_url: '',
+    video_highlight_url: ''
   })
 
   // Achievements
@@ -130,7 +185,15 @@ export default function ProfilePage() {
       agent_name: player.agent_name || '',
       agent_contact: player.agent_contact || '',
       market_value: player.market_value?.toString() || '',
-      bio: player.bio || ''
+      bio: player.bio || '',
+      highest_level_played: player.highest_level_played || '',
+      national_team_representation: player.national_team_representation || '',
+      transfermarkt_url: player.transfermarkt_url || '',
+      scouting_platform_links: player.scouting_platform_links || [],
+      agent_history: player.agent_history || '',
+      trials_history: player.trials_history || '',
+      cv_url: player.cv_url || '',
+      video_highlight_url: player.video_highlight_url || ''
     })
 
     if (player.achievements && Array.isArray(player.achievements)) {
@@ -217,6 +280,56 @@ export default function ProfilePage() {
     setUploading(false)
   }
 
+  const handleCVUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+
+    setUploadingCV(true)
+
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a PDF or DOCX file')
+      setUploadingCV(false)
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB')
+      setUploadingCV(false)
+      return
+    }
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${profile.id}/cv.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('player-documents')
+      .upload(fileName, file, { upsert: true })
+
+    if (uploadError) {
+      alert('Upload error: ' + uploadError.message)
+      setUploadingCV(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('player-documents')
+      .getPublicUrl(fileName)
+
+    const { error: updateError } = await supabase
+      .from('players')
+      .update({ cv_url: publicUrl })
+      .eq('id', profile.id)
+
+    if (updateError) {
+      alert('Error saving CV: ' + updateError.message)
+    } else {
+      setFormData({ ...formData, cv_url: publicUrl })
+      alert('CV uploaded successfully!')
+    }
+    setUploadingCV(false)
+  }
+
   const handleMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !profile) return
@@ -293,11 +406,12 @@ export default function ProfilePage() {
     }
   }
 
-  // Save individual sections
+  // ========== SAVE FUNCTIONS ==========
+
   const saveBasicInfo = async () => {
     setSavingSection('basic')
     const dateOfBirth = formData.date_of_birth && formData.date_of_birth.trim() !== '' ? formData.date_of_birth : null
-    
+
     const { error } = await supabase
       .from('players')
       .update({
@@ -305,10 +419,17 @@ export default function ProfilePage() {
         date_of_birth: dateOfBirth,
         position: formData.position || null,
         nationality: formData.nationality || null,
-        height_cm: formData.height_cm ? parseInt(formData.height_cm) : null,
+        height_cm: formData.height_cm ? parseFloat(formData.height_cm) : null,
         weight_kg: formData.weight_kg ? parseInt(formData.weight_kg) : null,
         preferred_foot: formData.preferred_foot || null,
         jersey_number: formData.jersey_number ? parseInt(formData.jersey_number) : null,
+        highest_level_played: formData.highest_level_played || null,
+        national_team_representation: formData.national_team_representation || null,
+        transfermarkt_url: formData.transfermarkt_url || null,
+        scouting_platform_links: formData.scouting_platform_links || [],
+        agent_history: formData.agent_history || null,
+        trials_history: formData.trials_history || null,
+        video_highlight_url: formData.video_highlight_url || null,
       })
       .eq('id', profile.id)
 
@@ -325,7 +446,7 @@ export default function ProfilePage() {
     setSavingSection('club')
     const clubSince = formData.current_club_since && formData.current_club_since.trim() !== '' ? formData.current_club_since : null
     const contractUntil = formData.contract_until && formData.contract_until.trim() !== '' ? formData.contract_until : null
-    
+
     const { error } = await supabase
       .from('players')
       .update({
@@ -400,23 +521,7 @@ export default function ProfilePage() {
     setSavingSection(null)
   }
 
-  const savePerformanceRatings = async () => {
-    setSavingSection('ratings')
-    const { error } = await supabase
-      .from('players')
-      .update({
-        performance_ratings: performanceRatings,
-      })
-      .eq('id', profile.id)
-
-    if (error) {
-      alert('Error saving ratings: ' + error.message)
-    } else {
-      alert('Performance ratings saved!')
-      fetchProfileData()
-    }
-    setSavingSection(null)
-  }
+  // ========== ACHIEVEMENTS ==========
 
   const addAchievement = () => {
     if (newAchievement.trim()) {
@@ -428,6 +533,14 @@ export default function ProfilePage() {
   const removeAchievement = (index: number) => {
     setAchievements(achievements.filter((_, i) => i !== index))
   }
+
+  // ========== PERFORMANCE RATINGS ==========
+
+  const updateRating = (key: string, value: number) => {
+    setPerformanceRatings({ ...performanceRatings, [key]: value })
+  }
+
+  // ========== SEASON STATS ==========
 
   const addSeasonStat = async () => {
     if (!newSeasonStat.season || !newSeasonStat.competition || !newSeasonStat.club) {
@@ -463,6 +576,21 @@ export default function ProfilePage() {
       fetchProfileData()
     }
   }
+
+  const deleteSeasonStat = async (id: string) => {
+    if (!confirm('Delete this season stat?')) return
+
+    const { error } = await supabase
+      .from('season_stats')
+      .delete()
+      .eq('id', id)
+
+    if (!error) {
+      fetchProfileData()
+    }
+  }
+
+  // ========== CAREER HISTORY ==========
 
   const addCareerEntry = async () => {
     if (!newCareerEntry.club_name) {
@@ -514,26 +642,13 @@ export default function ProfilePage() {
     }
   }
 
-  const deleteSeasonStat = async (id: string) => {
-    if (!confirm('Delete this season stat?')) return
-
-    const { error } = await supabase
-      .from('season_stats')
-      .delete()
-      .eq('id', id)
-
-    if (!error) {
-      fetchProfileData()
-    }
-  }
-
-  const updateRating = (key: string, value: number) => {
-    setPerformanceRatings({ ...performanceRatings, [key]: value })
-  }
+  // ========== HELPERS ==========
 
   const handleFormChange = (field: string, value: any) => {
     setFormData({ ...formData, [field]: value })
   }
+
+  // ========== LOADING STATE ==========
 
   if (loading) {
     return (
@@ -542,6 +657,8 @@ export default function ProfilePage() {
       </div>
     )
   }
+
+  // ========== RENDER ==========
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -612,7 +729,7 @@ export default function ProfilePage() {
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => handleFormChange('name', e.target.value)}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="text-2xl md:text-3xl font-bold text-gray-900 border-b-2 border-gray-200 focus:border-red-500 outline-none w-full"
             />
           </div>
@@ -700,7 +817,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={formData.name}
-                        onChange={(e) => handleFormChange('name', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -709,7 +826,7 @@ export default function ProfilePage() {
                       <input
                         type="date"
                         value={formData.date_of_birth}
-                        onChange={(e) => handleFormChange('date_of_birth', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -717,21 +834,20 @@ export default function ProfilePage() {
                       <label className="block text-sm font-medium text-gray-700 mb-1">Position</label>
                       <select
                         value={formData.position}
-                        onChange={(e) => handleFormChange('position', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, position: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       >
                         <option value="">Select Position</option>
-                        <option value="Forward">Forward</option>
-                        <option value="Midfielder">Midfielder</option>
-                        <option value="Defender">Defender</option>
-                        <option value="Goalkeeper">Goalkeeper</option>
+                        {positions.map(pos => (
+                          <option key={pos} value={pos}>{pos}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Preferred Foot</label>
                       <select
                         value={formData.preferred_foot}
-                        onChange={(e) => handleFormChange('preferred_foot', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, preferred_foot: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       >
                         <option value="Left">Left</option>
@@ -741,29 +857,39 @@ export default function ProfilePage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                      <input
-                        type="text"
+                      <select
                         value={formData.nationality}
-                        onChange={(e) => handleFormChange('nationality', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, nationality: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
-                      />
+                      >
+                        <option value="">Select Nationality</option>
+                        {countries.map(country => (
+                          <option key={country} value={country}>{country}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Jersey Number</label>
                       <input
                         type="number"
                         value={formData.jersey_number}
-                        onChange={(e) => handleFormChange('jersey_number', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, jersey_number: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Height (cm)</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Height (meters)</label>
                       <input
                         type="number"
-                        value={formData.height_cm}
-                        onChange={(e) => handleFormChange('height_cm', e.target.value)}
+                        step="0.01"
+                        value={formData.height_cm ? (parseFloat(formData.height_cm) / 100).toFixed(2) : ''}
+                        onChange={(e) => {
+                          const meters = parseFloat(e.target.value)
+                          const cm = meters * 100
+                          setFormData({ ...formData, height_cm: cm.toString() })
+                        }}
                         className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="1.85"
                       />
                     </div>
                     <div>
@@ -771,14 +897,113 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         value={formData.weight_kg}
-                        onChange={(e) => handleFormChange('weight_kg', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, weight_kg: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="75"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Club Information Section */}
+                {/* Player Application Details */}
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h3 className="text-lg font-semibold mb-4">Player Application Details</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Highest Level Played</label>
+                      <input
+                        type="text"
+                        value={formData.highest_level_played}
+                        onChange={(e) => setFormData({ ...formData, highest_level_played: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="e.g., Professional, Semi-Pro, Amateur"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">National Team Representation</label>
+                      <input
+                        type="text"
+                        value={formData.national_team_representation}
+                        onChange={(e) => setFormData({ ...formData, national_team_representation: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="e.g., South Africa U23, 5 caps"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Transfermarkt Profile URL</label>
+                      <input
+                        type="url"
+                        value={formData.transfermarkt_url}
+                        onChange={(e) => setFormData({ ...formData, transfermarkt_url: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="https://www.transfermarkt.com/..."
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Agent History</label>
+                      <input
+                        type="text"
+                        value={formData.agent_history}
+                        onChange={(e) => setFormData({ ...formData, agent_history: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="Previous agency representation"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">History of Trials Abroad</label>
+                      <input
+                        type="text"
+                        value={formData.trials_history}
+                        onChange={(e) => setFormData({ ...formData, trials_history: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="e.g., Club X, Country, Year"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Video Highlight URL</label>
+                      <input
+                        type="url"
+                        value={formData.video_highlight_url}
+                        onChange={(e) => setFormData({ ...formData, video_highlight_url: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="YouTube, Vimeo, or other video link"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Upload CV (PDF or DOCX)</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="file"
+                          accept=".pdf,.docx"
+                          onChange={handleCVUpload}
+                          disabled={uploadingCV}
+                          className="hidden"
+                          id="cv-upload"
+                        />
+                        <label
+                          htmlFor="cv-upload"
+                          className="flex items-center gap-2 px-4 py-2 bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-200 transition"
+                        >
+                          <FileText className="w-5 h-5 text-gray-500" />
+                          <span className="text-sm text-gray-600">{uploadingCV ? 'Uploading...' : 'Choose CV'}</span>
+                        </label>
+                        {formData.cv_url && (
+                          <a
+                            href={formData.cv_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            View Uploaded CV
+                          </a>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">PDF or DOCX (Max 10MB)</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Club Information */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Club Information</h3>
@@ -797,7 +1022,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={formData.current_club}
-                        onChange={(e) => handleFormChange('current_club', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, current_club: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="e.g., Kaizer Chiefs"
                       />
@@ -807,7 +1032,7 @@ export default function ProfilePage() {
                       <input
                         type="date"
                         value={formData.current_club_since}
-                        onChange={(e) => handleFormChange('current_club_since', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, current_club_since: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -816,7 +1041,7 @@ export default function ProfilePage() {
                       <input
                         type="date"
                         value={formData.contract_until}
-                        onChange={(e) => handleFormChange('contract_until', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, contract_until: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -825,7 +1050,7 @@ export default function ProfilePage() {
                       <input
                         type="number"
                         value={formData.market_value}
-                        onChange={(e) => handleFormChange('market_value', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, market_value: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="e.g., 500000"
                       />
@@ -833,7 +1058,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Agent Information Section */}
+                {/* Agent Information */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Agent Information</h3>
@@ -852,7 +1077,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={formData.agent_name}
-                        onChange={(e) => handleFormChange('agent_name', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, agent_name: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                       />
                     </div>
@@ -861,7 +1086,7 @@ export default function ProfilePage() {
                       <input
                         type="text"
                         value={formData.agent_contact}
-                        onChange={(e) => handleFormChange('agent_contact', e.target.value)}
+                        onChange={(e) => setFormData({ ...formData, agent_contact: e.target.value })}
                         className="w-full px-3 py-2 border rounded-lg"
                         placeholder="Email or Phone"
                       />
@@ -869,7 +1094,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Bio Section */}
+                {/* Biography */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Biography</h3>
@@ -884,14 +1109,14 @@ export default function ProfilePage() {
                   </div>
                   <textarea
                     value={formData.bio}
-                    onChange={(e) => handleFormChange('bio', e.target.value)}
+                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     rows={4}
                     className="w-full px-3 py-2 border rounded-lg"
                     placeholder="Tell your story..."
                   />
                 </div>
 
-                {/* Achievements Section */}
+                {/* Achievements */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">🏆 Achievements</h3>
@@ -925,42 +1150,11 @@ export default function ProfilePage() {
                     </button>
                   </div>
                 </div>
-
-                {/* Performance Ratings Section */}
-                <div className="bg-white rounded-xl shadow p-6">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-semibold">📊 Performance Ratings (1-100)</h3>
-                    <button
-                      onClick={savePerformanceRatings}
-                      disabled={savingSection === 'ratings'}
-                      className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-700 transition"
-                    >
-                      <Save className="w-4 h-4" />
-                      {savingSection === 'ratings' ? 'Saving...' : 'Save Section'}
-                    </button>
-                  </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(performanceRatings).map(([key, value]) => (
-                      <div key={key}>
-                        <label className="text-sm text-gray-600 capitalize flex justify-between">
-                          {key} <span className="font-semibold text-red-600">{value}</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="0"
-                          max="100"
-                          value={value}
-                          onChange={(e) => updateRating(key, parseInt(e.target.value))}
-                          className="w-full"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </>
             ) : (
-              // View mode (same as before)
+              // VIEW MODE
               <div className="space-y-6">
+                {/* Player Information */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h3 className="text-lg font-semibold mb-4">Player Information</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -973,16 +1167,59 @@ export default function ProfilePage() {
                       <p className="font-medium">{profile?.preferred_foot || '-'}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Height/Weight</p>
-                      <p className="font-medium">{profile?.height_cm ? `${profile.height_cm}cm` : '-'} / {profile?.weight_kg ? `${profile.weight_kg}kg` : '-'}</p>
+                      <p className="text-xs text-gray-500">Height</p>
+                      <p className="font-medium">{profile?.height_cm ? `${(profile.height_cm / 100).toFixed(2)}m` : '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Weight</p>
+                      <p className="font-medium">{profile?.weight_kg ? `${profile.weight_kg}kg` : '-'}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Jersey Number</p>
                       <p className="font-medium">{profile?.jersey_number || '-'}</p>
                     </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Highest Level Played</p>
+                      <p className="font-medium">{profile?.highest_level_played || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">National Team</p>
+                      <p className="font-medium">{profile?.national_team_representation || '-'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Agent History</p>
+                      <p className="font-medium">{profile?.agent_history || '-'}</p>
+                    </div>
+                  </div>
+                  {profile?.transfermarkt_url && (
+                    <div className="mt-4">
+                      <p className="text-xs text-gray-500">Transfermarkt Profile</p>
+                      <a href={profile.transfermarkt_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                        {profile.transfermarkt_url}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Performance Ratings - MOVED TO VIEW MODE */}
+                <div className="bg-white rounded-xl shadow p-6">
+                  <h3 className="text-lg font-semibold mb-4">📊 Performance Ratings</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {Object.entries(performanceRatings).map(([key, value]) => (
+                      <div key={key}>
+                        <div className="flex justify-between text-sm mb-1">
+                          <span className="capitalize text-gray-600">{key}</span>
+                          <span className="font-semibold text-red-600">{value}</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-red-600 h-2 rounded-full" style={{ width: `${value}%` }}></div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
+                {/* Club Information */}
                 <div className="bg-white rounded-xl shadow p-6">
                   <h3 className="text-lg font-semibold mb-4">Club Information</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1005,6 +1242,7 @@ export default function ProfilePage() {
                   </div>
                 </div>
 
+                {/* Agent Information */}
                 {(profile?.agent_name || profile?.agent_contact) && (
                   <div className="bg-white rounded-xl shadow p-6">
                     <h3 className="text-lg font-semibold mb-4">Agent Information</h3>
@@ -1021,6 +1259,7 @@ export default function ProfilePage() {
                   </div>
                 )}
 
+                {/* Achievements */}
                 {achievements.length > 0 && (
                   <div className="bg-white rounded-xl shadow p-6">
                     <h3 className="text-lg font-semibold mb-4">🏆 Achievements</h3>
@@ -1035,27 +1274,43 @@ export default function ProfilePage() {
                   </div>
                 )}
 
-                <div className="bg-white rounded-xl shadow p-6">
-                  <h3 className="text-lg font-semibold mb-4">📊 Performance Ratings</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(performanceRatings).map(([key, value]) => (
-                      <div key={key}>
-                        <div className="flex justify-between text-sm mb-1">
-                          <span className="capitalize text-gray-600">{key}</span>
-                          <span className="font-semibold text-red-600">{value}</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-red-600 h-2 rounded-full" style={{ width: `${value}%` }}></div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
+                {/* Biography */}
                 {profile?.bio && (
                   <div className="bg-white rounded-xl shadow p-6">
                     <h3 className="text-lg font-semibold mb-4">Biography</h3>
                     <p className="text-gray-700 leading-relaxed">{profile.bio}</p>
+                  </div>
+                )}
+
+                {/* CV Download */}
+                {profile?.cv_url && (
+                  <div className="bg-white rounded-xl shadow p-6">
+                    <h3 className="text-lg font-semibold mb-4">📄 CV</h3>
+                    <a
+                      href={profile.cv_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-blue-600 hover:underline"
+                    >
+                      <FileText className="w-4 h-4" />
+                      Download CV
+                    </a>
+                  </div>
+                )}
+
+                {/* Video Highlight */}
+                {profile?.video_highlight_url && (
+                  <div className="bg-white rounded-xl shadow p-6">
+                    <h3 className="text-lg font-semibold mb-4">🎥 Video Highlights</h3>
+                    <a
+                      href={profile.video_highlight_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-blue-600 hover:underline"
+                    >
+                      <Video className="w-4 h-4" />
+                      Watch Highlights
+                    </a>
                   </div>
                 )}
               </div>
@@ -1063,7 +1318,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Season Stats Tab - Keep the same as before */}
+        {/* Season Stats Tab */}
         {activeTab === 'stats' && (
           <div className="space-y-6">
             {editing && (
@@ -1239,7 +1494,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Career History Tab - Keep the same as before */}
+        {/* Career History Tab */}
         {activeTab === 'career' && (
           <div className="space-y-6">
             {editing && (
@@ -1423,7 +1678,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {/* Media Tab - Keep the same as before */}
+        {/* Media Tab */}
         {activeTab === 'media' && (
           <div className="space-y-6">
             {editing && (

@@ -16,6 +16,7 @@ export default function AgentProfilePage() {
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
+  const [uploadingLicense, setUploadingLicense] = useState(false)
   const [editing, setEditing] = useState(false)
   const [clients, setClients] = useState<any[]>([])
   const [documents, setDocuments] = useState<any[]>([])
@@ -155,6 +156,56 @@ export default function AgentProfilePage() {
     setProfile({ ...profile, profile_picture: publicUrl })
     alert('Profile picture updated!')
     setUploading(false)
+  }
+
+  const handleLicenseUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !profile) return
+
+    setUploadingLicense(true)
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a PDF, JPG, or PNG file')
+      setUploadingLicense(false)
+      return
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB')
+      setUploadingLicense(false)
+      return
+    }
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${profile.id}/license-${Date.now()}.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('agent-documents')
+      .upload(fileName, file, { upsert: true })
+
+    if (uploadError) {
+      alert('Upload error: ' + uploadError.message)
+      setUploadingLicense(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('agent-documents')
+      .getPublicUrl(fileName)
+
+    const { error: updateError } = await supabase
+      .from('agents')
+      .update({ license_document_url: publicUrl })
+      .eq('id', profile.id)
+
+    if (updateError) {
+      alert('Error saving license document: ' + updateError.message)
+    } else {
+      setProfile({ ...profile, license_document_url: publicUrl })
+      alert('License document uploaded! Awaiting verification.')
+    }
+    setUploadingLicense(false)
   }
 
   const saveProfileData = async () => {
@@ -548,7 +599,7 @@ export default function AgentProfilePage() {
             </div>
           </div>
 
-          {/* Professional Information */}
+          {/* Professional Information with License */}
           <div className="bg-white rounded-xl shadow p-6">
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <Shield className="w-5 h-5 text-blue-600" />
@@ -570,19 +621,43 @@ export default function AgentProfilePage() {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Years of Experience</label>
-                {editing ? (
-                  <input 
-                    type="number" 
-                    value={formData.years_experience} 
-                    onChange={(e) => handleFormChange('years_experience', e.target.value)} 
-                    className="w-full px-3 py-2 border rounded-lg" 
-                    placeholder="Years in the industry" 
+                <label className="block text-sm font-medium text-gray-700 mb-1">License Document</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleLicenseUpload}
+                    disabled={uploadingLicense}
+                    className="hidden"
+                    id="license-upload"
                   />
-                ) : (
-                  <p className="text-gray-700">{profile?.years_experience ? `${profile.years_experience} years` : 'Not specified'}</p>
-                )}
+                  <label
+                    htmlFor="license-upload"
+                    className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition ${uploadingLicense ? 'opacity-50' : ''}`}
+                  >
+                    <UploadCloud className="w-5 h-5 text-gray-500" />
+                    <span className="text-sm text-gray-600">{uploadingLicense ? 'Uploading...' : 'Upload License'}</span>
+                  </label>
+                  {profile?.license_document_url && (
+                    <a
+                      href={profile.license_document_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                    >
+                      <FileText className="w-4 h-4" />
+                      View
+                    </a>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">PDF, JPG, or PNG (Max 10MB)</p>
               </div>
+              {profile?.license_verified && (
+                <div className="flex items-center gap-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                  <CheckCircle className="w-5 h-5" />
+                  <span className="text-sm">License verified on {new Date(profile.license_verified_at).toLocaleDateString()}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -592,7 +667,7 @@ export default function AgentProfilePage() {
               <Award className="w-5 h-5 text-green-600" />
               Specializations
             </h3>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex-wrap flex gap-2 mb-3">
               {formData.specializations.length === 0 && !editing && (
                 <p className="text-sm text-gray-500">No specializations added</p>
               )}
@@ -629,7 +704,7 @@ export default function AgentProfilePage() {
               <Globe className="w-5 h-5 text-purple-600" />
               Languages
             </h3>
-            <div className="flex flex-wrap gap-2 mb-3">
+            <div className="flex-wrap flex gap-2 mb-3">
               {formData.languages.length === 0 && !editing && (
                 <p className="text-sm text-gray-500">No languages added</p>
               )}
@@ -752,9 +827,9 @@ export default function AgentProfilePage() {
                   onChange={(e) => handleFormChange('bio', e.target.value)} 
                   rows={6} 
                   className="w-full px-3 py-2 border rounded-lg" 
-                  placeholder="Write about your agency, experience, successful deals, philosophy, and what makes you unique as an agent..." 
+                  placeholder="Write about your agency, experience, successful deals, philosophy..." 
                 />
-                <p className="text-xs text-gray-500 mt-2">Share your background, achievements, and approach to player representation</p>
+                <p className="text-xs text-gray-500 mt-2">Share your background and approach to player representation</p>
               </div>
             ) : (
               <p className="text-gray-700 leading-relaxed">{profile?.bio || 'No bio added yet.'}</p>

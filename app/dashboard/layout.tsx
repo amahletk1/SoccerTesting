@@ -37,10 +37,8 @@ export default function DashboardLayout({
         setUserId(user.id)
         setUserEmail(user.email || '')
 
-        // Fetch notification count
         await fetchNotificationCount(user.email || '')
         
-        // Check if user is admin
         const { data: adminData } = await supabase
           .from('admins')
           .select('*')
@@ -55,7 +53,6 @@ export default function DashboardLayout({
           return
         }
 
-        // Check if user is player
         const { data: player } = await supabase
           .from('players')
           .select('*')
@@ -70,7 +67,6 @@ export default function DashboardLayout({
           return
         }
 
-        // Check if user is agent
         const { data: agent } = await supabase
           .from('agents')
           .select('*')
@@ -85,7 +81,6 @@ export default function DashboardLayout({
           return
         }
 
-        // Check if user is scout
         const { data: scout } = await supabase
           .from('scouts')
           .select('*')
@@ -111,20 +106,18 @@ export default function DashboardLayout({
     checkUser()
   }, [router, supabase])
 
-const fetchNotificationCount = async (email: string) => {
-  // Count only notifications with status 'pending' (unread)
-  const { count } = await supabase
-    .from('email_notifications')
-    .select('*', { count: 'exact', head: true })
-    .eq('recipient_email', email)
-    .eq('status', 'pending')  // Make sure this is correct
-  
-  setNotificationCount(count || 0)
-}
+  const fetchNotificationCount = async (email: string) => {
+    const { count } = await supabase
+      .from('email_notifications')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_email', email)
+      .eq('status', 'pending')
+    
+    setNotificationCount(count || 0)
+  }
 
   const fetchUnreadMessagesCount = async (userId: string, role: string) => {
     try {
-      // Get conversations based on role
       let conversationsQuery
       
       if (role === 'agent') {
@@ -151,7 +144,6 @@ const fetchNotificationCount = async (email: string) => {
 
       const conversationIds = conversations.map(c => c.id)
 
-      // Count unread messages where user is NOT the sender
       const { count } = await supabase
         .from('messages')
         .select('*', { count: 'exact', head: true })
@@ -166,11 +158,9 @@ const fetchNotificationCount = async (email: string) => {
     }
   }
 
-  // Subscribe to real-time message updates
   useEffect(() => {
     if (!userId || !userRole) return
 
-    // Subscribe to new messages
     const messageChannel = supabase
       .channel('unread-messages')
       .on('postgres_changes', 
@@ -185,7 +175,6 @@ const fetchNotificationCount = async (email: string) => {
       )
       .subscribe()
 
-    // Subscribe to message updates (when messages are marked as read)
     const messageUpdateChannel = supabase
       .channel('message-updates')
       .on('postgres_changes', 
@@ -200,7 +189,6 @@ const fetchNotificationCount = async (email: string) => {
       )
       .subscribe()
 
-    // Subscribe to notification updates
     const notificationChannel = supabase
       .channel('notification-updates')
       .on('postgres_changes', 
@@ -218,7 +206,6 @@ const fetchNotificationCount = async (email: string) => {
     }
   }, [userId, userRole, userEmail])
 
-  // Also refresh counts when the page becomes visible again
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -452,18 +439,6 @@ const fetchNotificationCount = async (email: string) => {
               >
                 <MessageSquare className="w-5 h-5 mr-3" />
                 Messages
-                {unreadMessagesCount > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                    {unreadMessagesCount > 99 ? '99+' : unreadMessagesCount}
-                  </span>
-                )}
-              </Link>
-              <Link 
-                href="/dashboard/agents" 
-                className="flex items-center px-6 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 transition"
-              >
-                <Users className="w-5 h-5 mr-3" />
-                Find Agents
               </Link>
             </>
           )}

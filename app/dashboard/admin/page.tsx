@@ -1033,58 +1033,74 @@ const handleVerifyScout = async (scoutId: string, status: string) => {
       )}
 
       {/* Engagement Review Modal */}
-      {selectedEngagement && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full">
-            <div className="p-6 border-b">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Review Engagement Request</h2>
-                <button onClick={() => setSelectedEngagement(null)} className="text-gray-400 hover:text-gray-600">✕</button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="bg-blue-50 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Agent</h3>
-                <p><strong>Name:</strong> {selectedEngagement.agent_name}</p>
-                <p><strong>Agency:</strong> {selectedEngagement.agency_name}</p>
-              </div>
-              
-              <div className="bg-green-50 p-4 rounded-lg">
-                <h3 className="font-semibold mb-2">Player</h3>
-                <p><strong>Name:</strong> {selectedEngagement.player_name}</p>
-                <p><strong>Position:</strong> {selectedEngagement.player_position}</p>
-                <p><strong>Age:</strong> {selectedEngagement.player_age}</p>
-              </div>
-              
+{selectedEngagement && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full">
+      <div className="p-6 border-b">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold">Review Engagement Request</h2>
+          <button onClick={() => setSelectedEngagement(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+        </div>
+      </div>
+      
+      <div className="p-6 space-y-4">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2">Agent</h3>
+          <p><strong>Name:</strong> {selectedEngagement.agent_name}</p>
+          <p><strong>Agency:</strong> {selectedEngagement.agency_name}</p>
+        </div>
+        
+        <div className="bg-green-50 p-4 rounded-lg">
+          <h3 className="font-semibold mb-2">Player</h3>
+          <p><strong>Name:</strong> {selectedEngagement.player_name}</p>
+          <p><strong>Position:</strong> {selectedEngagement.player_position}</p>
+          <p><strong>Age:</strong> {selectedEngagement.player_age}</p>
+        </div>
+
+        {/* NEW: Agent Message Display */}
+        {selectedEngagement.agent_message && (
+          <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+            <div className="flex items-start gap-2">
+              <MessageSquare className="w-5 h-5 text-purple-600 mt-0.5" />
               <div>
-                <label className="block text-sm font-medium mb-1">Restriction Level</label>
-                <select value={restrictionLevel} onChange={(e) => setRestrictionLevel(e.target.value)} className="w-full p-2 border rounded">
-                  <option value="none">None - Full access</option>
-                  <option value="monitor">Monitor - Admin reviews messages</option>
-                  <option value="restricted">Restricted - No contact info sharing</option>
-                </select>
+                <h4 className="font-semibold text-purple-900">Agent's Message</h4>
+                <p className="text-purple-700 text-sm italic mt-1">"{selectedEngagement.agent_message}"</p>
+                <p className="text-xs text-purple-400 mt-2">
+                  {selectedEngagement.message_character_count || selectedEngagement.agent_message.length} characters
+                </p>
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Admin Notes</label>
-                <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows={2} className="w-full p-2 border rounded" placeholder="Internal notes..." />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Rejection Reason</label>
-                <textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} className="w-full p-2 border rounded" placeholder="Required if rejecting" />
-              </div>
-            </div>
-            
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-              <button onClick={() => setSelectedEngagement(null)} className="px-4 py-2 border rounded">Cancel</button>
-              <button onClick={handleRejectEngagement} className="px-4 py-2 bg-red-600 text-white rounded">Reject</button>
-              <button onClick={handleApproveEngagement} className="px-4 py-2 bg-green-600 text-white rounded">Approve</button>
             </div>
           </div>
+        )}
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">Restriction Level</label>
+          <select value={restrictionLevel} onChange={(e) => setRestrictionLevel(e.target.value)} className="w-full p-2 border rounded">
+            <option value="none">None - Full access</option>
+            <option value="monitor">Monitor - Admin reviews messages</option>
+            <option value="restricted">Restricted - No contact info sharing</option>
+          </select>
         </div>
-      )}
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">Admin Notes</label>
+          <textarea value={adminNotes} onChange={(e) => setAdminNotes(e.target.value)} rows={2} className="w-full p-2 border rounded" placeholder="Internal notes..." />
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">Rejection Reason</label>
+          <textarea value={rejectionReason} onChange={(e) => setRejectionReason(e.target.value)} rows={2} className="w-full p-2 border rounded" placeholder="Required if rejecting" />
+        </div>
+      </div>
+      
+      <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
+        <button onClick={() => setSelectedEngagement(null)} className="px-4 py-2 border rounded">Cancel</button>
+        <button onClick={handleRejectEngagement} className="px-4 py-2 bg-red-600 text-white rounded">Reject</button>
+        <button onClick={handleApproveEngagement} className="px-4 py-2 bg-green-600 text-white rounded">Approve</button>
+      </div>
+    </div>
+  </div>
+)}
 
       {/* Player Detail Modal */}
       {showPlayerDetailModal && selectedPlayer && (

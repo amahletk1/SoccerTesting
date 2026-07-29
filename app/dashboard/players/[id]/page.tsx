@@ -9,7 +9,7 @@ import {
   TrendingUp, Award, Heart, Eye, CheckCircle, User, 
   Trophy, Activity, Share2, MessageCircle, ThumbsUp, 
   Users, Target, Zap, Shield, Briefcase, DollarSign, Clock,
-  FileText, Plus, Trash2, Edit2, Save, X
+  FileText, Plus, Trash2, Edit2, Save, X, Send, AlertCircle
 } from 'lucide-react'
 
 interface PlayerProfilePageProps {
@@ -31,6 +31,13 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
   const [requesting, setRequesting] = useState(false)
   const [editing, setEditing] = useState(false)
   const [newAchievement, setNewAchievement] = useState('')
+  
+  // Engagement Message Modal
+  const [showEngagementModal, setShowEngagementModal] = useState(false)
+  const [engagementMessage, setEngagementMessage] = useState('')
+  const [messageError, setMessageError] = useState('')
+  const [charCount, setCharCount] = useState(0)
+  const MAX_CHARS = 500
   
   const [newSeasonStat, setNewSeasonStat] = useState({
     season: '',
@@ -221,163 +228,105 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
     }
   }
 
-  const handleRequestEngagement = async () => {
+  const handleRequestEngagement = () => {
     if (!agentId || !playerId) {
       alert('Please log in as an agent to request engagement')
       return
     }
+    setShowEngagementModal(true)
+    setEngagementMessage('')
+    setCharCount(0)
+    setMessageError('')
+  }
+
+  const sendEngagementRequest = async () => {
+    if (!agentId || !playerId) return
+    
+    const trimmedMessage = engagementMessage.trim()
+    if (trimmedMessage.length === 0) {
+      setMessageError('Please write a message to the player')
+      return
+    }
+    
+    if (trimmedMessage.length > MAX_CHARS) {
+      setMessageError(`Message exceeds ${MAX_CHARS} characters`)
+      return
+    }
+    
     setRequesting(true)
+    setMessageError('')
 
     const { error } = await supabase
       .from('engagements')
       .insert({
         agent_id: agentId,
         player_id: playerId,
-        status: 'pending'
+        status: 'pending',
+        agent_message: trimmedMessage,
+        message_character_count: trimmedMessage.length,
+        created_at: new Date().toISOString()
       })
 
     if (error) {
       alert('Error: ' + error.message)
     } else {
+      const { data: playerData } = await supabase
+        .from('players')
+        .select('email, user_id')
+        .eq('id', playerId)
+        .single()
+      
+      const { data: agentData } = await supabase
+        .from('agents')
+        .select('name')
+        .eq('id', agentId)
+        .single()
+      
+      if (playerData && agentData) {
+        await supabase
+          .from('email_notifications')
+          .insert({
+            user_id: playerData.user_id,
+            recipient_email: playerData.email,
+            recipient_type: 'player',
+            subject: 'New Engagement Request',
+            message: `Hello,\n\nAgent ${agentData.name} has sent you an engagement request.\n\nMessage: "${trimmedMessage}"\n\nLog in to your dashboard to view and respond to this request.\n\nBest regards,\nPlayerFynder Team`,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          })
+      }
+      
       alert('Engagement request sent! Admin will review it.')
+      setShowEngagementModal(false)
+      setEngagementMessage('')
+      setCharCount(0)
     }
     setRequesting(false)
   }
 
-  const addAchievement = () => {
-    if (newAchievement.trim()) {
-      setAchievements([...achievements, newAchievement.trim()])
-      setNewAchievement('')
+  const handleMessageChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const text = e.target.value
+    if (text.length <= MAX_CHARS) {
+      setEngagementMessage(text)
+      setCharCount(text.length)
+      setMessageError('')
     }
   }
 
-  const removeAchievement = (index: number) => {
-    setAchievements(achievements.filter((_, i) => i !== index))
-  }
-
-  const saveAchievements = async () => {
-    const { error } = await supabase
-      .from('players')
-      .update({ achievements: achievements })
-      .eq('id', playerId)
-
-    if (error) {
-      alert('Error saving achievements: ' + error.message)
-    } else {
-      alert('Achievements saved!')
-      setEditing(false)
-      fetchPlayerData()
+  const messageTemplates = [
+    {
+      title: 'Professional Interest',
+      text: 'Hello, I have reviewed your profile and believe you have great potential. I would like to discuss representing you and helping you achieve your football goals.'
+    },
+    {
+      title: 'Talent Recognition',
+      text: 'Hi, your skills are impressive and I think you meet the requirements for representation. I would love to have a conversation about your career aspirations.'
+    },
+    {
+      title: 'General Interest',
+      text: 'Hello, I am interested in your profile and believe we could work well together. I have opportunities that might fit your playing style.'
     }
-  }
-
-  const saveRatings = async () => {
-    const { error } = await supabase
-      .from('players')
-      .update({ performance_ratings: performanceRatings })
-      .eq('id', playerId)
-
-    if (error) {
-      alert('Error saving ratings: ' + error.message)
-    } else {
-      alert('Ratings saved!')
-      setEditing(false)
-      fetchPlayerData()
-    }
-  }
-
-  const addSeasonStat = async () => {
-    if (!newSeasonStat.season || !newSeasonStat.competition || !newSeasonStat.club) {
-      alert('Please fill in season, competition, and club')
-      return
-    }
-
-    const { error } = await supabase
-      .from('season_stats')
-      .insert({
-        player_id: playerId,
-        season: newSeasonStat.season,
-        competition: newSeasonStat.competition,
-        club: newSeasonStat.club,
-        appearances: newSeasonStat.appearances,
-        goals: newSeasonStat.goals,
-        assists: newSeasonStat.assists,
-        minutes_played: newSeasonStat.minutes_played,
-        yellow_cards: newSeasonStat.yellow_cards,
-        red_cards: newSeasonStat.red_cards,
-        pass_accuracy: newSeasonStat.pass_accuracy,
-        shot_accuracy: newSeasonStat.shot_accuracy
-      })
-
-    if (error) {
-      alert('Error adding season stats: ' + error.message)
-    } else {
-      alert('Season stats added!')
-      setNewSeasonStat({
-        season: '', competition: '', club: '', appearances: 0, goals: 0, assists: 0,
-        minutes_played: 0, yellow_cards: 0, red_cards: 0, pass_accuracy: 0, shot_accuracy: 0
-      })
-      fetchPlayerData()
-    }
-  }
-
-  const deleteSeasonStat = async (id: string) => {
-    if (!confirm('Delete this season stat?')) return
-    const { error } = await supabase.from('season_stats').delete().eq('id', id)
-    if (!error) fetchPlayerData()
-  }
-
-  const addCareerEntry = async () => {
-    if (!newCareerEntry.club_name) {
-      alert('Please enter club name')
-      return
-
-       // DEBUG: Log the exact value being sent
-  console.log('=== DEBUG CAREER ENTRY ===')
-  console.log('transfer_type value:', JSON.stringify(newCareerEntry.transfer_type))
-  console.log('transfer_type type:', typeof newCareerEntry.transfer_type)
-  console.log('Full entry:', newCareerEntry)
-    }
-
-    const { error } = await supabase
-      .from('career_history')
-      .insert({
-        player_id: playerId,
-        club_name: newCareerEntry.club_name,
-        league: newCareerEntry.league,
-        country: newCareerEntry.country,
-        start_date: newCareerEntry.start_date || null,
-        end_date: newCareerEntry.is_current ? null : (newCareerEntry.end_date || null),
-        is_current: newCareerEntry.is_current,
-        transfer_type: newCareerEntry.transfer_type,
-        transfer_fee: newCareerEntry.transfer_fee ? parseFloat(newCareerEntry.transfer_fee) : null,
-        appearances: newCareerEntry.appearances,
-        goals: newCareerEntry.goals,
-        assists: newCareerEntry.assists
-      })
-
-    if (error) {
-      alert('Error adding career entry: ' + error.message)
-    } else {
-      alert('Career entry added!')
-      setNewCareerEntry({
-        club_name: '', league: '', country: '', start_date: '', end_date: '',
-        is_current: false, transfer_type: 'Permanent',
-        transfer_fee: '',
-        appearances: 0, goals: 0, assists: 0
-      })
-      fetchPlayerData()
-    }
-  }
-
-  const deleteCareerEntry = async (id: string) => {
-    if (!confirm('Delete this career entry?')) return
-    const { error } = await supabase.from('career_history').delete().eq('id', id)
-    if (!error) fetchPlayerData()
-  }
-
-  const updateRating = (key: string, value: number) => {
-    setPerformanceRatings({ ...performanceRatings, [key]: value })
-  }
+  ]
 
   const totalGoals = seasonStats.reduce((sum, stat) => sum + (stat.goals || 0), 0)
   const totalAssists = seasonStats.reduce((sum, stat) => sum + (stat.assists || 0), 0)
@@ -411,26 +360,6 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
         Back to Players
       </Link>
 
-      <div className="flex justify-end gap-2 mb-4">
-        {editing ? (
-          <>
-            <button onClick={() => setEditing(false)} className="flex items-center gap-2 bg-gray-200 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-gray-300 transition">
-              <X className="w-4 h-4" /> Cancel
-            </button>
-            <button onClick={saveAchievements} className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-700 transition">
-              <Save className="w-4 h-4" /> Save Achievements
-            </button>
-            <button onClick={saveRatings} className="flex items-center gap-2 bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-blue-700 transition">
-              <Save className="w-4 h-4" /> Save Ratings
-            </button>
-          </>
-        ) : (
-          <button onClick={() => setEditing(true)} className="flex items-center gap-2 bg-white shadow px-3 py-1.5 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
-            <Edit2 className="w-4 h-4" /> Edit Achievements & Ratings
-          </button>
-        )}
-      </div>
-
       {/* Hero Section */}
       <div className="relative bg-gradient-to-r from-red-600 via-black to-blue-600 rounded-2xl overflow-hidden">
         <div className="absolute inset-0 bg-black/30"></div>
@@ -462,8 +391,8 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
                     <Star className="w-4 h-4" fill={isShortlisted ? 'currentColor' : 'none'} />
                     {isShortlisted ? 'Shortlisted' : 'Add to Shortlist'}
                   </button>
-                  <button onClick={handleRequestEngagement} disabled={requesting} className="bg-red-600 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-red-700 transition flex items-center gap-2">
-                    <MessageCircle className="w-4 h-4" /> {requesting ? 'Sending...' : 'Request Engagement'}
+                  <button onClick={handleRequestEngagement} className="bg-red-600 text-white px-6 py-2 rounded-full text-sm font-semibold hover:bg-red-700 transition flex items-center gap-2">
+                    <MessageCircle className="w-4 h-4" /> Request Engagement
                   </button>
                 </>
               )}
@@ -504,7 +433,7 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
         </div>
       </div>
 
-      {/* Two Column Layout */}
+      {/* Two Column Layout - simplified for display */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
         {/* Left Column */}
         <div className="space-y-6">
@@ -531,48 +460,30 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
                   <div key={key}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="capitalize">{key}</span>
-                      {editing ? (
-                        <input type="number" value={value} onChange={(e) => updateRating(key, parseInt(e.target.value))} className="w-16 px-2 py-1 border rounded text-sm" min="0" max="100" />
-                      ) : (
-                        <span className="font-semibold">{value}/100</span>
-                      )}
+                      <span className="font-semibold">{value}/100</span>
                     </div>
-                    {!editing && (
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div className="bg-red-500 rounded-full h-2" style={{ width: `${value}%` }}></div>
-                      </div>
-                    )}
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-red-500 rounded-full h-2" style={{ width: `${value}%` }}></div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Award className="w-5 h-5 text-yellow-600" /> Achievements</h2>
-            {editing ? (
-              <>
-                <div className="space-y-2 mb-3">
-                  {achievements.map((achievement, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="flex-1 px-3 py-2 bg-gray-50 rounded-lg text-sm">{achievement}</span>
-                      <button onClick={() => removeAchievement(idx)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <input type="text" value={newAchievement} onChange={(e) => setNewAchievement(e.target.value)} placeholder="Add achievement (e.g., Top Scorer 2023)" className="flex-1 px-3 py-2 border rounded-lg text-sm" />
-                  <button onClick={addAchievement} className="bg-green-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-green-700"><Plus className="w-4 h-4" /> Add</button>
-                </div>
-              </>
-            ) : (
+          {achievements.length > 0 && (
+            <div className="bg-white rounded-xl shadow-lg p-6">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Award className="w-5 h-5 text-yellow-600" /> Achievements</h2>
               <div className="space-y-2">
-                {achievements.length === 0 ? <p className="text-gray-500 text-sm">No achievements added yet</p> : achievements.map((achievement, idx) => (
-                  <div key={idx} className="flex items-center gap-2 text-sm"><Trophy className="w-4 h-4 text-yellow-500" /><span>{achievement}</span></div>
+                {achievements.map((achievement, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm">
+                    <Trophy className="w-4 h-4 text-yellow-500" />
+                    <span>{achievement}</span>
+                  </div>
                 ))}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {player?.bio && (
             <div className="bg-white rounded-xl shadow-lg p-6">
@@ -584,20 +495,6 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
 
         {/* Right Column */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Add Season Stat Form */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-600" /> Add Season Statistics</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Season *</label><input type="text" value={newSeasonStat.season} onChange={(e) => setNewSeasonStat({ ...newSeasonStat, season: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="2023/2024" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Competition *</label><input type="text" value={newSeasonStat.competition} onChange={(e) => setNewSeasonStat({ ...newSeasonStat, competition: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="Premier League" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Club *</label><input type="text" value={newSeasonStat.club} onChange={(e) => setNewSeasonStat({ ...newSeasonStat, club: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="Club name" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Appearances</label><input type="number" value={newSeasonStat.appearances} onChange={(e) => setNewSeasonStat({ ...newSeasonStat, appearances: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Goals</label><input type="number" value={newSeasonStat.goals} onChange={(e) => setNewSeasonStat({ ...newSeasonStat, goals: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Assists</label><input type="number" value={newSeasonStat.assists} onChange={(e) => setNewSeasonStat({ ...newSeasonStat, assists: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-            </div>
-            <button onClick={addSeasonStat} className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"><Plus className="w-4 h-4 inline mr-2" /> Add Season Stats</button>
-          </div>
-
           {/* Career Statistics Table */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><TrendingUp className="w-5 h-5 text-blue-600" /> Career Statistics</h2>
@@ -606,7 +503,15 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50"><tr><th className="px-4 py-2 text-left text-sm font-semibold">Season</th><th className="px-4 py-2 text-center text-sm font-semibold">Competition</th><th className="px-4 py-2 text-center text-sm font-semibold">Apps</th><th className="px-4 py-2 text-center text-sm font-semibold">Goals</th><th className="px-4 py-2 text-center text-sm font-semibold">Assists</th><th className="px-4 py-2 text-center"></th></tr></thead>
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-2 text-left text-sm font-semibold">Season</th>
+                      <th className="px-4 py-2 text-center text-sm font-semibold">Competition</th>
+                      <th className="px-4 py-2 text-center text-sm font-semibold">Apps</th>
+                      <th className="px-4 py-2 text-center text-sm font-semibold">Goals</th>
+                      <th className="px-4 py-2 text-center text-sm font-semibold">Assists</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {seasonStats.map((stat, idx) => (
                       <tr key={stat.id} className={idx !== seasonStats.length - 1 ? 'border-b' : ''}>
@@ -615,7 +520,6 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
                         <td className="px-4 py-3 text-center text-sm">{stat.appearances || 0}</td>
                         <td className="px-4 py-3 text-center text-sm text-green-600 font-semibold">{stat.goals || 0}</td>
                         <td className="px-4 py-3 text-center text-sm text-blue-600 font-semibold">{stat.assists || 0}</td>
-                        <td className="px-4 py-3 text-center"><button onClick={() => deleteSeasonStat(stat.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -624,55 +528,28 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
             )}
           </div>
 
-          {/* Add Career Entry Form */}
-          <div className="bg-white rounded-xl shadow-lg p-6">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Briefcase className="w-5 h-5 text-green-600" /> Add Career History</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Club Name *</label><input type="text" value={newCareerEntry.club_name} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, club_name: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., Kaizer Chiefs" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">League</label><input type="text" value={newCareerEntry.league} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, league: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., DStv Premiership" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Country</label><input type="text" value={newCareerEntry.country} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, country: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., South Africa" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label><input type="date" value={newCareerEntry.start_date} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, start_date: e.target.value })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">End Date</label><input type="date" value={newCareerEntry.end_date} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, end_date: e.target.value })} className="w-full px-3 py-2 border rounded-lg" disabled={newCareerEntry.is_current} /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Transfer Type</label>
-                <select value={newCareerEntry.transfer_type} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, transfer_type: e.target.value })} className="w-full px-3 py-2 border rounded-lg">
-                  <option value="Permanent">Permanent Transfer</option>
-                  <option value="Loan">Loan</option>
-                  <option value="Free Transfer">Free Transfer</option>
-                  <option value="Academy">Academy</option>
-                </select>
-              </div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Transfer Fee (€)</label><input type="number" value={newCareerEntry.transfer_fee} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, transfer_fee: e.target.value })} className="w-full px-3 py-2 border rounded-lg" placeholder="e.g., 5000000" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Appearances</label><input type="number" value={newCareerEntry.appearances} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, appearances: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Goals</label><input type="number" value={newCareerEntry.goals} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, goals: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div><label className="block text-sm font-medium text-gray-700 mb-1">Assists</label><input type="number" value={newCareerEntry.assists} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, assists: parseInt(e.target.value) })} className="w-full px-3 py-2 border rounded-lg" /></div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="is_current" checked={newCareerEntry.is_current} onChange={(e) => setNewCareerEntry({ ...newCareerEntry, is_current: e.target.checked, end_date: '' })} className="w-4 h-4" />
-                <label htmlFor="is_current" className="text-sm font-medium text-gray-700">Current Club</label>
-              </div>
-            </div>
-            <button onClick={addCareerEntry} className="mt-4 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"><Plus className="w-4 h-4 inline mr-2" /> Add Career Entry</button>
-          </div>
-
-          {/* Career History List */}
+          {/* Career History */}
           {careerHistory.length > 0 && (
             <div className="bg-white rounded-xl shadow-lg p-6">
               <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Briefcase className="w-5 h-5 text-gray-600" /> Career History</h2>
               <div className="space-y-4">
                 {careerHistory.map((entry) => (
                   <div key={entry.id} className="flex gap-4 items-start p-3 bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold">{entry.club_name?.charAt(0) || 'C'}</div>
+                    <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center text-red-600 font-bold">
+                      {entry.club_name?.charAt(0) || 'C'}
+                    </div>
                     <div className="flex-1">
                       <h4 className="font-bold text-gray-900">{entry.club_name}</h4>
                       <p className="text-sm text-gray-500">{entry.league} • {entry.country}</p>
-                      <p className="text-sm text-gray-600 mt-1">{entry.start_date ? new Date(entry.start_date).getFullYear() : '?'} - {entry.is_current ? 'Present' : (entry.end_date ? new Date(entry.end_date).getFullYear() : '')}</p>
+                      <p className="text-sm text-gray-600 mt-1">
+                        {entry.start_date ? new Date(entry.start_date).getFullYear() : '?'} - {entry.is_current ? 'Present' : (entry.end_date ? new Date(entry.end_date).getFullYear() : '')}
+                      </p>
                       <div className="flex gap-4 mt-2 text-sm">
                         <span>{entry.appearances || 0} Apps</span>
                         <span className="text-green-600">{entry.goals || 0} Goals</span>
                         <span className="text-blue-600">{entry.assists || 0} Assists</span>
-                        {entry.transfer_fee && entry.transfer_fee > 0 && <span className="text-purple-600">€{(entry.transfer_fee / 1000000).toFixed(1)}M</span>}
                       </div>
                     </div>
-                    <button onClick={() => deleteCareerEntry(entry.id)} className="text-red-500 hover:text-red-700 p-2"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 ))}
               </div>
@@ -683,12 +560,19 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Video className="w-5 h-5 text-purple-600" /> Highlight Gallery</h2>
             {otherMedia.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg"><Video className="w-16 h-16 text-gray-300 mx-auto mb-3" /><p className="text-gray-500">No highlight videos or images yet</p></div>
+              <div className="text-center py-12 bg-gray-50 rounded-lg">
+                <Video className="w-16 h-16 text-gray-300 mx-auto mb-3" />
+                <p className="text-gray-500">No highlight videos or images yet</p>
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {otherMedia.map((item) => (
                   <div key={item.id} className="relative group">
-                    {item.type === 'video' ? <video src={item.url} className="w-full h-48 object-cover rounded-lg" controls /> : <img src={item.url} alt={item.title || "Player highlight"} className="w-full h-48 object-cover rounded-lg" />}
+                    {item.type === 'video' ? (
+                      <video src={item.url} className="w-full h-48 object-cover rounded-lg" controls />
+                    ) : (
+                      <img src={item.url} alt={item.title || "Player highlight"} className="w-full h-48 object-cover rounded-lg" />
+                    )}
                     {item.title && <div className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 rounded text-xs">{item.title}</div>}
                   </div>
                 ))}
@@ -697,6 +581,118 @@ export default function PlayerProfilePage({ params }: PlayerProfilePageProps) {
           </div>
         </div>
       </div>
+
+      {/* Engagement Message Modal */}
+      {showEngagementModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b bg-gradient-to-r from-red-50 to-blue-50 rounded-t-2xl">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-bold text-gray-900">Request Engagement</h2>
+                <button 
+                  onClick={() => {
+                    setShowEngagementModal(false)
+                    setEngagementMessage('')
+                    setMessageError('')
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                Send a message to {player?.name || 'the player'} introducing yourself
+              </p>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Message Templates</p>
+                <div className="space-y-2">
+                  {messageTemplates.map((template, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setEngagementMessage(template.text)
+                        setCharCount(template.text.length)
+                        setMessageError('')
+                      }}
+                      className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition text-sm"
+                    >
+                      <p className="font-medium text-gray-800">{template.title}</p>
+                      <p className="text-gray-500 text-xs truncate">{template.text.substring(0, 100)}...</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Your Message <span className="text-red-500">*</span>
+                  <span className="text-xs text-gray-400 ml-2">
+                    ({charCount}/{MAX_CHARS} characters)
+                  </span>
+                </label>
+                <textarea
+                  value={engagementMessage}
+                  onChange={handleMessageChange}
+                  placeholder="Write a professional message introducing yourself and why you're interested in this player..."
+                  rows={5}
+                  className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none resize-none ${
+                    messageError ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                />
+                {messageError && (
+                  <div className="flex items-center gap-2 mt-1 text-red-500 text-sm">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>{messageError}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start gap-2">
+                  <div className="text-blue-600 mt-0.5">
+                    <AlertCircle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-blue-800 font-medium">Tips for a great message:</p>
+                    <ul className="text-xs text-blue-700 mt-1 space-y-1 list-disc list-inside">
+                      <li>Introduce yourself and your agency</li>
+                      <li>Explain why you're interested in this player</li>
+                      <li>Be professional and respectful</li>
+                      <li>Keep your message clear and concise</li>
+                      <li>Your message will be reviewed by the admin first</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3 rounded-b-2xl">
+              <button
+                onClick={() => {
+                  setShowEngagementModal(false)
+                  setEngagementMessage('')
+                  setMessageError('')
+                }}
+                className="px-4 py-2 border rounded-lg hover:bg-gray-100 transition"
+                disabled={requesting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={sendEngagementRequest}
+                disabled={requesting || !engagementMessage.trim()}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 flex items-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                {requesting ? 'Sending...' : 'Send Request'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

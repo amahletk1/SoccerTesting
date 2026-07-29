@@ -4,13 +4,58 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
+// All countries list - same as profile page
+const countries = [
+  'Afghanistan', 'Albania', 'Algeria', 'Andorra', 'Angola', 'Antigua and Barbuda',
+  'Argentina', 'Armenia', 'Australia', 'Austria', 'Azerbaijan', 'Bahamas', 'Bahrain',
+  'Bangladesh', 'Barbados', 'Belarus', 'Belgium', 'Belize', 'Benin', 'Bhutan',
+  'Bolivia', 'Bosnia and Herzegovina', 'Botswana', 'Brazil', 'Brunei', 'Bulgaria',
+  'Burkina Faso', 'Burundi', 'Cabo Verde', 'Cambodia', 'Cameroon', 'Canada',
+  'Central African Republic', 'Chad', 'Chile', 'China', 'Colombia', 'Comoros',
+  'Congo', 'Costa Rica', 'Croatia', 'Cuba', 'Cyprus', 'Czech Republic',
+  'Denmark', 'Djibouti', 'Dominica', 'Dominican Republic', 'Ecuador', 'Egypt',
+  'El Salvador', 'Equatorial Guinea', 'Eritrea', 'Estonia', 'Eswatini', 'Ethiopia',
+  'Fiji', 'Finland', 'France', 'Gabon', 'Gambia', 'Georgia', 'Germany', 'Ghana',
+  'Greece', 'Grenada', 'Guatemala', 'Guinea', 'Guinea-Bissau', 'Guyana', 'Haiti',
+  'Honduras', 'Hungary', 'Iceland', 'India', 'Indonesia', 'Iran', 'Iraq', 'Ireland',
+  'Israel', 'Italy', 'Ivory Coast', 'Jamaica', 'Japan', 'Jordan', 'Kazakhstan',
+  'Kenya', 'Kiribati', 'Kuwait', 'Kyrgyzstan', 'Laos', 'Latvia', 'Lebanon', 'Lesotho',
+  'Liberia', 'Libya', 'Liechtenstein', 'Lithuania', 'Luxembourg', 'Madagascar',
+  'Malawi', 'Malaysia', 'Maldives', 'Mali', 'Malta', 'Marshall Islands', 'Mauritania',
+  'Mauritius', 'Mexico', 'Micronesia', 'Moldova', 'Monaco', 'Mongolia', 'Montenegro',
+  'Morocco', 'Mozambique', 'Myanmar', 'Namibia', 'Nauru', 'Nepal', 'Netherlands',
+  'New Zealand', 'Nicaragua', 'Niger', 'Nigeria', 'North Korea', 'North Macedonia',
+  'Norway', 'Oman', 'Pakistan', 'Palau', 'Palestine', 'Panama', 'Papua New Guinea',
+  'Paraguay', 'Peru', 'Philippines', 'Poland', 'Portugal', 'Qatar', 'Romania',
+  'Russia', 'Rwanda', 'Saint Kitts and Nevis', 'Saint Lucia', 'Saint Vincent',
+  'Samoa', 'San Marino', 'Sao Tome and Principe', 'Saudi Arabia', 'Senegal',
+  'Serbia', 'Seychelles', 'Sierra Leone', 'Singapore', 'Slovakia', 'Slovenia',
+  'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 'South Sudan',
+  'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria',
+  'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga',
+  'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda',
+  'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay',
+  'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen',
+  'Zambia', 'Zimbabwe'
+]
+
+// Positions list - same as profile page
+const positions = [
+  'Forward',
+  'False 9',
+  'Winger',
+  'Midfielder',
+  'Defender',
+  'Goalkeeper'
+]
+
 export default function CompleteProfilePage() {
   const [role, setRole] = useState<'player' | 'agent' | 'scout'>('player')
   const [name, setName] = useState('')
   const [age, setAge] = useState('')
   const [position, setPosition] = useState('')
   const [nationality, setNationality] = useState('')
-  const [height, setHeight] = useState('')
+  const [heightMeters, setHeightMeters] = useState('') // Now in meters
   const [weight, setWeight] = useState('')
   const [agency, setAgency] = useState('')
   const [clubName, setClubName] = useState('')
@@ -42,6 +87,9 @@ export default function CompleteProfilePage() {
 
     // ========== PLAYER REGISTRATION ==========
     if (role === 'player') {
+      // Convert meters to cm for database storage
+      const heightCm = heightMeters ? parseFloat(heightMeters) * 100 : null
+
       const { data: existingPlayer } = await supabase
         .from('players')
         .select('id')
@@ -57,7 +105,7 @@ export default function CompleteProfilePage() {
             age: parseInt(age) || null,
             position: position,
             nationality: nationality || null,
-            height_cm: height ? parseInt(height) : null,
+            height_cm: heightCm,
             weight_kg: weight ? parseInt(weight) : null,
             email: user.email,
             status: 'pending'
@@ -73,7 +121,7 @@ export default function CompleteProfilePage() {
             age: parseInt(age) || null,
             position: position,
             nationality: nationality || null,
-            height_cm: height ? parseInt(height) : null,
+            height_cm: heightCm,
             weight_kg: weight ? parseInt(weight) : null,
             status: 'pending',
             created_at: new Date().toISOString()
@@ -375,33 +423,36 @@ export default function CompleteProfilePage() {
                   required
                 >
                   <option value="">Select Position</option>
-                  <option value="Forward">Forward</option>
-                  <option value="Midfielder">Midfielder</option>
-                  <option value="Defender">Defender</option>
-                  <option value="Goalkeeper">Goalkeeper</option>
+                  {positions.map(pos => (
+                    <option key={pos} value={pos}>{pos}</option>
+                  ))}
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium mb-1">Nationality</label>
-                <input
-                  type="text"
+                <select
                   value={nationality}
                   onChange={(e) => setNationality(e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                  placeholder="Your country"
-                />
+                >
+                  <option value="">Select Nationality</option>
+                  {countries.map(country => (
+                    <option key={country} value={country}>{country}</option>
+                  ))}
+                </select>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Height (cm)</label>
+                  <label className="block text-sm font-medium mb-1">Height (meters)</label>
                   <input
                     type="number"
-                    value={height}
-                    onChange={(e) => setHeight(e.target.value)}
+                    step="0.01"
+                    value={heightMeters}
+                    onChange={(e) => setHeightMeters(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    placeholder="cm"
+                    placeholder="e.g., 1.85"
                   />
                 </div>
                 <div>
@@ -411,7 +462,7 @@ export default function CompleteProfilePage() {
                     value={weight}
                     onChange={(e) => setWeight(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    placeholder="kg"
+                    placeholder="e.g., 75"
                   />
                 </div>
               </div>

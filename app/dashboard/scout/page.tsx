@@ -7,7 +7,7 @@ import Link from 'next/link'
 import { 
   Target, FileText, Star, Clock, TrendingUp, Award, 
   Users, CheckCircle, Calendar, BarChart3, Eye, Zap, Trophy,
-  Send, Building2, X
+  UploadCloud
 } from 'lucide-react'
 
 export default function ScoutDashboard() {
@@ -16,12 +16,12 @@ export default function ScoutDashboard() {
   const [myReports, setMyReports] = useState<any[]>([])
   const [playersCount, setPlayersCount] = useState(0)
   const [scoutId, setScoutId] = useState<string>('')
-  const [showRecommendModal, setShowRecommendModal] = useState(false)
-  const [selectedReport, setSelectedReport] = useState<any>(null)
-  const [agents, setAgents] = useState<any[]>([])
-  const [selectedAgents, setSelectedAgents] = useState<string[]>([])
-  const [recommendMessage, setRecommendMessage] = useState('')
-  const [sending, setSending] = useState(false)
+  
+  // Qualifications state
+  const [qualifications, setQualifications] = useState('')
+  const [certificateUrl, setCertificateUrl] = useState('')
+  const [uploadingCert, setUploadingCert] = useState(false)
+  
   const [stats, setStats] = useState({
     playersScouted: 0,
     reportsWritten: 0,
@@ -56,13 +56,15 @@ export default function ScoutDashboard() {
 
         setProfile(scout)
         setScoutId(scout.id)
+        setQualifications(scout.qualifications || '')
+        setCertificateUrl(scout.certificate_url || '')
 
         // Get scout's reports
         const { data: reportsData } = await supabase
           .from('scouting_reports')
           .select(`
             *,
-            player:players(id, name, position, age, nationality, profile_picture)
+            player:players(id, name, position, age, nationality)
           `)
           .eq('scout_id', scout.id)
           .order('created_at', { ascending: false })
@@ -94,7 +96,7 @@ export default function ScoutDashboard() {
           })
         }
 
-        // Get total players count
+        // Get total players count for scouting target
         const { count: playersTotal } = await supabase
           .from('players')
           .select('*', { count: 'exact', head: true })
@@ -112,49 +114,64 @@ export default function ScoutDashboard() {
     loadDashboard()
   }, [])
 
-  const fetchAgents = async () => {
-    const { data } = await supabase
-      .from('agents')
-      .select('id, name, agency, specializations')
-      .eq('verification_status', 'verified')
-      .limit(30)
-    if (data) setAgents(data)
-  }
+  // Handle certificate upload
+  const handleCertificateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !scoutId) return
 
-  const sendRecommendations = async () => {
-    if (!selectedReport || selectedAgents.length === 0) return
-    
-    setSending(true)
-    
-    let successCount = 0
-    for (const agentId of selectedAgents) {
-      const { error } = await supabase
-        .from('scout_recommendations')
-        .insert({
-          scout_id: scoutId,
-          agent_id: agentId,
-          player_id: selectedReport.player_id,
-          report_id: selectedReport.id,
-          message: recommendMessage,
-          status: 'pending'
-        })
-      
-      if (!error) successCount++
+    setUploadingCert(true)
+
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/png']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a PDF, JPG, or PNG file')
+      setUploadingCert(false)
+      return
     }
-    
-    alert(`Recommended to ${successCount} agent(s)!`)
-    setShowRecommendModal(false)
-    setSelectedAgents([])
-    setRecommendMessage('')
-    setSending(false)
-  }
 
-  const toggleAgent = (agentId: string) => {
-    if (selectedAgents.includes(agentId)) {
-      setSelectedAgents(selectedAgents.filter(id => id !== agentId))
+    if (file.size > 10 * 1024 * 1024) {
+      alert('File size must be less than 10MB')
+      setUploadingCert(false)
+      return
+    }
+
+    const fileExt = file.name.split('.').pop()
+    const fileName = `${scoutId}/certificate-${Date.now()}.${fileExt}`
+
+    const { error: uploadError } = await supabase.storage
+      .from('scout-certificates')
+      .upload(fileName, file, { upsert: true })
+
+    if (uploadError) {
+      alert('Upload error: ' + uploadError.message)
+      setUploadingCert(false)
+      return
+    }
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('scout-certificates')
+      .getPublicUrl(fileName)
+
+    const { error: updateError } = await supabase
+      .from('scouts')
+      .update({ certificate_url: publicUrl })
+      .eq('id', scoutId)
+
+    if (updateError) {
+      alert('Error saving certificate: ' + updateError.message)
     } else {
-      setSelectedAgents([...selectedAgents, agentId])
+      setCertificateUrl(publicUrl)
+      alert('Certificate uploaded successfully!')
     }
+    setUploadingCert(false)
+  }
+
+  // Save qualifications on blur
+  const saveQualifications = async () => {
+    const { error } = await supabase
+      .from('scouts')
+      .update({ qualifications })
+      .eq('id', scoutId)
+    if (error) console.error('Error saving qualifications:', error)
   }
 
   if (loading) {
@@ -185,6 +202,59 @@ export default function ScoutDashboard() {
                 Member since {profile?.created_at ? new Date(profile.created_at).getFullYear() : '2024'}
               </span>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Qualifications & Certificate Section - NEW */}
+      <div className="bg-white rounded-xl shadow p-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Qualifications
+            </h3>
+            <textarea
+              value={qualifications}
+              onChange={(e) => setQualifications(e.target.value)}
+              onBlur={saveQualifications}
+              placeholder="Enter your qualifications (e.g., UEFA B License, Scouting Diploma)..."
+              className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+              rows={2}
+            />
+            <p className="text-xs text-gray-400 mt-1">Qualifications are visible to clubs and agents</p>
+          </div>
+          <div className="flex-shrink-0">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Certificate (PDF/Image)</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleCertificateUpload}
+                disabled={uploadingCert}
+                className="hidden"
+                id="certificate-upload"
+              />
+              <label
+                htmlFor="certificate-upload"
+                className={`flex items-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition ${uploadingCert ? 'opacity-50' : ''}`}
+              >
+                <UploadCloud className="w-5 h-5 text-gray-500" />
+                <span className="text-sm text-gray-600">{uploadingCert ? 'Uploading...' : 'Upload Certificate'}</span>
+              </label>
+              {certificateUrl && (
+                <a
+                  href={certificateUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-600 hover:underline flex items-center gap-1"
+                >
+                  <FileText className="w-4 h-4" />
+                  View Certificate
+                </a>
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">PDF, JPG, or PNG (Max 10MB)</p>
           </div>
         </div>
       </div>
@@ -237,7 +307,7 @@ export default function ScoutDashboard() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FileText className="w-5 h-5 text-green-600" />
-            <h2 className="text-xl font-semibold">My Scouting Reports</h2>
+            <h2 className="text-xl font-semibold">My Recent Reports</h2>
           </div>
           <Link href="/dashboard/scouting/reports" className="text-sm text-green-600 hover:underline">
             View all ({stats.reportsWritten}) →
@@ -271,20 +341,9 @@ export default function ScoutDashboard() {
                     <Star className="w-4 h-4 text-yellow-500" />
                     <span className="font-semibold">{report.overall_rating || '?'}/10</span>
                   </div>
-                  <button
-                    onClick={() => {
-                      setSelectedReport(report)
-                      fetchAgents()
-                      setShowRecommendModal(true)
-                    }}
-                    className="text-blue-600 hover:text-blue-700 text-sm flex items-center gap-1"
-                  >
-                    <Send className="w-3 h-3" />
-                    Recommend
-                  </button>
                   <Link
                     href={`/dashboard/players/${report.player_id}`}
-                    className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+                    className="text-sm text-blue-600 hover:underline flex items-center gap-1"
                   >
                     <Eye className="w-3 h-3" />
                     View
@@ -327,98 +386,24 @@ export default function ScoutDashboard() {
         </Link>
       </div>
 
-      {/* Recommend Modal */}
-      {showRecommendModal && selectedReport && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="p-6 border-b sticky top-0 bg-white">
-              <div className="flex justify-between items-center">
-                <h2 className="text-xl font-bold">Recommend Player to Agents</h2>
-                <button 
-                  onClick={() => setShowRecommendModal(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-            
-            <div className="p-6 space-y-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <p className="text-sm text-gray-500">Player</p>
-                <p className="font-semibold text-lg">{selectedReport.player?.name}</p>
-                <p className="text-sm text-gray-500">{selectedReport.player?.position} • Age {selectedReport.player?.age}</p>
-                <div className="flex items-center gap-1 mt-2">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <span className="font-semibold">Rating: {selectedReport.overall_rating}/10</span>
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Message to Agents (Optional)</label>
-                <textarea
-                  value={recommendMessage}
-                  onChange={(e) => setRecommendMessage(e.target.value)}
-                  placeholder="Add a personal note about why this player is worth considering..."
-                  className="w-full p-3 border rounded-lg h-24 focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Select Agents ({selectedAgents.length} selected)
-                </label>
-                <div className="border rounded-lg max-h-60 overflow-y-auto divide-y">
-                  {agents.length === 0 ? (
-                    <div className="p-4 text-center text-gray-500">Loading agents...</div>
-                  ) : (
-                    agents.map((agent) => (
-                      <label key={agent.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={selectedAgents.includes(agent.id)}
-                          onChange={() => toggleAgent(agent.id)}
-                          className="w-4 h-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
-                        />
-                        <div className="flex-1">
-                          <p className="font-medium text-gray-900">{agent.name}</p>
-                          <p className="text-sm text-gray-500">{agent.agency || 'Independent Agent'}</p>
-                        </div>
-                        {agent.specializations && agent.specializations.length > 0 && (
-                          <div className="flex gap-1">
-                            {agent.specializations.slice(0, 2).map((spec: string) => (
-                              <span key={spec} className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                                {spec}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </label>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="p-6 border-t bg-gray-50 flex justify-end gap-3">
-              <button
-                onClick={() => setShowRecommendModal(false)}
-                className="px-4 py-2 border rounded-lg hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={sendRecommendations}
-                disabled={selectedAgents.length === 0 || sending}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                {sending ? 'Sending...' : `Send to ${selectedAgents.length} Agent(s)`}
-              </button>
-            </div>
+      {/* Pro Tips Card */}
+      <div className="bg-gradient-to-r from-green-50 via-teal-50 to-green-50 rounded-xl shadow p-6">
+        <h3 className="font-semibold text-gray-900 mb-3">💡 Scout Success Tips</h3>
+        <div className="grid md:grid-cols-3 gap-3 text-sm">
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
+            <span className="text-gray-600">Watch 3+ matches before rating</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
+            <span className="text-gray-600">Compare to professional benchmarks</span>
+          </div>
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 mt-0.5" />
+            <span className="text-gray-600">Document strengths AND weaknesses</span>
           </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
