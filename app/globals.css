@@ -1,58 +1,547 @@
 @import "tailwindcss";
 
+/* =========================================================
+   PLAYERFYNDER — GLOBAL DESIGN SYSTEM
+   DARK / GREEN / GOLD
+   UI/UX ONLY — NO FUNCTIONALITY CHANGES
+   ========================================================= */
+
 :root {
-  --primary-red: #dc2626;
-  --primary-blue: #3b82f6;
-  --primary-black: #111827;
+  /* =======================================================
+     BRAND
+     ======================================================= */
+
+  --primary-green: #00e676;
+  --primary-green-dark: #00b85c;
+  --primary-green-light: #b9f6d0;
+
+  --primary-gold: #f6b93b;
+  --primary-gold-dark: #d99b20;
+  --primary-gold-light: #ffe4a3;
+
+  --primary-black: #080f0f;
+  --black-soft: #0d1717;
+  --black-card: #101c1b;
+  --black-deep: #050b0b;
+
+  /* =======================================================
+     SURFACES
+     ======================================================= */
+
+  --background: #080f0f;
+  --surface: #0d1717;
+  --surface-soft: #101c1b;
+  --surface-raised: #13201e;
+
+  /* =======================================================
+     TEXT
+     ======================================================= */
+
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.72);
+  --text-muted: rgba(255, 255, 255, 0.48);
+  --text-light: rgba(255, 255, 255, 0.30);
+
+  /* =======================================================
+     BORDERS
+     ======================================================= */
+
+  --border: rgba(255, 255, 255, 0.09);
+  --border-light: rgba(255, 255, 255, 0.055);
+
+  --border-green: rgba(0, 230, 118, 0.25);
+  --border-gold: rgba(246, 185, 59, 0.25);
+
+  /* =======================================================
+     STATUS
+     ======================================================= */
+
+  --success: #00e676;
+  --success-light: rgba(0, 230, 118, 0.12);
+
+  --warning: #f6b93b;
+  --warning-light: rgba(246, 185, 59, 0.12);
+
+  --danger: #ff5252;
+  --danger-light: rgba(255, 82, 82, 0.12);
+
+  --info: #42a5f5;
+  --info-light: rgba(66, 165, 245, 0.12);
+
+  /* =======================================================
+     LAYOUT
+     ======================================================= */
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 32px;
+
+  /* =======================================================
+     SHADOWS
+     ======================================================= */
+
+  --shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.20);
+
+  --shadow-md:
+    0 6px 20px rgba(0, 0, 0, 0.25);
+
+  --shadow-lg:
+    0 12px 35px rgba(0, 0, 0, 0.35);
+
+  --shadow-xl:
+    0 25px 65px rgba(0, 0, 0, 0.50);
+
+  --shadow-green:
+    0 0 30px rgba(0, 230, 118, 0.16);
+
+  --shadow-gold:
+    0 0 30px rgba(246, 185, 59, 0.12);
+
+  /* =======================================================
+     MOTION
+     ======================================================= */
+
+  --transition-fast: 150ms ease;
+  --transition-normal: 220ms ease;
+  --transition-slow: 350ms ease;
+}
+
+
+/* =========================================================
+   BASE
+   ========================================================= */
+
+html {
+  scroll-behavior: smooth;
+  background: var(--background);
 }
 
 body {
-  background: linear-gradient(135deg, #fef2f2 0%, #eff6ff 100%);
+  margin: 0;
   min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at 0% 0%,
+      rgba(0, 230, 118, 0.055),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 100% 0%,
+      rgba(246, 185, 59, 0.035),
+      transparent 28%
+    ),
+    var(--background);
+
+  color: var(--text-primary);
+
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Mobile optimizations */
-@media (max-width: 768px) {
-  body {
-    font-size: 14px;
-  }
-  
-  input, select, textarea, button {
-    font-size: 16px !important; /* Prevents zoom on focus on iOS */
-  }
+
+/* =========================================================
+   SELECTION
+   ========================================================= */
+
+::selection {
+  background: rgba(0, 230, 118, 0.22);
+  color: #ffffff;
 }
 
-/* Custom scrollbar */
+
+/* =========================================================
+   LINKS
+   ========================================================= */
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+
+/* =========================================================
+   FORM ELEMENTS
+   ========================================================= */
+
+input,
+select,
+textarea {
+  color: var(--text-primary);
+
+  transition:
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-light);
+}
+
+
+/* =========================================================
+   SELECT OPTIONS
+   ========================================================= */
+
+select option {
+  background: #0d1717;
+  color: #ffffff;
+}
+
+
+/* =========================================================
+   BUTTON POLISH
+   ========================================================= */
+
+button {
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    background-color var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+button:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+
+/* =========================================================
+   CARD
+   ========================================================= */
+
+.pf-card {
+  background: var(--surface);
+
+  border: 1px solid var(--border);
+
+  border-radius: var(--radius-lg);
+
+  box-shadow: var(--shadow-sm);
+
+  transition:
+    transform var(--transition-normal),
+    box-shadow var(--transition-normal),
+    border-color var(--transition-normal),
+    background-color var(--transition-normal);
+}
+
+.pf-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow-md);
+}
+
+.pf-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+
+/* =========================================================
+   PREMIUM SURFACE
+   ========================================================= */
+
+.pf-surface {
+  background:
+    linear-gradient(
+      145deg,
+      rgba(16, 28, 27, 0.98),
+      rgba(13, 23, 23, 0.96)
+    );
+
+  border: 1px solid var(--border);
+
+  border-radius: var(--radius-xl);
+
+  box-shadow: var(--shadow-md);
+}
+
+
+/* =========================================================
+   GREEN BRAND GRADIENT
+   ========================================================= */
+
+.pf-brand-gradient {
+  background:
+    linear-gradient(
+      135deg,
+      #00e676 0%,
+      #00c968 55%,
+      #009f55 100%
+    );
+}
+
+
+/* =========================================================
+   GREEN BRAND TEXT
+   ========================================================= */
+
+.pf-brand-text {
+  background:
+    linear-gradient(
+      135deg,
+      #00e676,
+      #38f59a
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent;
+}
+
+
+/* =========================================================
+   GOLD BRAND TEXT
+   ========================================================= */
+
+.pf-gold-text {
+  background:
+    linear-gradient(
+      135deg,
+      #f6b93b,
+      #ffe08a
+    );
+
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  color: transparent;
+}
+
+
+/* =========================================================
+   PAGE BACKGROUND
+   ========================================================= */
+
+.pf-page-background {
+  position: relative;
+
+  min-height: 100vh;
+
+  overflow-x: hidden;
+
+  background: var(--background);
+}
+
+.pf-page-background::before,
+.pf-page-background::after {
+  content: "";
+
+  position: fixed;
+
+  width: 420px;
+  height: 420px;
+
+  border-radius: 9999px;
+
+  pointer-events: none;
+
+  z-index: -1;
+
+  filter: blur(100px);
+
+  opacity: 0.12;
+}
+
+.pf-page-background::before {
+  top: -180px;
+  left: -160px;
+
+  background: var(--primary-green);
+}
+
+.pf-page-background::after {
+  right: -180px;
+  bottom: -180px;
+
+  background: var(--primary-gold);
+}
+
+
+/* =========================================================
+   BRAND GLOW
+   ========================================================= */
+
+.pf-green-glow {
+  box-shadow:
+    0 0 25px rgba(0, 230, 118, 0.14);
+}
+
+.pf-gold-glow {
+  box-shadow:
+    0 0 25px rgba(246, 185, 59, 0.12);
+}
+
+
+/* =========================================================
+   BADGES
+   ========================================================= */
+
+.pf-badge {
+  display: inline-flex;
+
+  align-items: center;
+
+  gap: 6px;
+
+  padding: 5px 10px;
+
+  border-radius: 9999px;
+
+  font-size: 12px;
+
+  font-weight: 600;
+
+  line-height: 1;
+
+  white-space: nowrap;
+}
+
+.pf-badge-success {
+  color: #7dffb5;
+
+  background: rgba(0, 230, 118, 0.10);
+
+  border: 1px solid rgba(0, 230, 118, 0.18);
+}
+
+.pf-badge-warning {
+  color: #ffd979;
+
+  background: rgba(246, 185, 59, 0.10);
+
+  border: 1px solid rgba(246, 185, 59, 0.18);
+}
+
+.pf-badge-danger {
+  color: #ff8d8d;
+
+  background: rgba(255, 82, 82, 0.10);
+
+  border: 1px solid rgba(255, 82, 82, 0.18);
+}
+
+.pf-badge-info {
+  color: #82c7ff;
+
+  background: rgba(66, 165, 245, 0.10);
+
+  border: 1px solid rgba(66, 165, 245, 0.18);
+}
+
+
+/* =========================================================
+   DIVIDER
+   ========================================================= */
+
+.pf-divider {
+  height: 1px;
+
+  width: 100%;
+
+  background: var(--border);
+}
+
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 7px;
+  height: 7px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
+  background: #050b0b;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--primary-red);
-  border-radius: 10px;
+  background: #263633;
+
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--primary-blue);
+  background: #3a504b;
 }
+
+
+/* Firefox */
+
+* {
+  scrollbar-width: thin;
+
+  scrollbar-color:
+    #263633
+    #050b0b;
+}
+
+
+/* =========================================================
+   BLOB ANIMATION
+   ========================================================= */
 
 @keyframes blob {
   0% {
-    transform: translate(0px, 0px) scale(1);
+    transform:
+      translate(0px, 0px)
+      scale(1);
   }
+
   33% {
-    transform: translate(30px, -50px) scale(1.1);
+    transform:
+      translate(30px, -50px)
+      scale(1.1);
   }
+
   66% {
-    transform: translate(-20px, 20px) scale(0.9);
+    transform:
+      translate(-20px, 20px)
+      scale(0.9);
   }
+
   100% {
-    transform: translate(0px, 0px) scale(1);
+    transform:
+      translate(0px, 0px)
+      scale(1);
   }
 }
 
@@ -64,34 +553,304 @@ body {
   animation-delay: 2s;
 }
 
-/* Table responsive */
+
+/* =========================================================
+   FADE / SLIDE ANIMATIONS
+   ========================================================= */
+
+@keyframes pf-fade-in {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+.pf-fade-in {
+  animation:
+    pf-fade-in
+    350ms
+    ease-out
+    both;
+}
+
+
+/* =========================================================
+   SCALE ANIMATION
+   ========================================================= */
+
+@keyframes pf-scale-in {
+  from {
+    opacity: 0;
+
+    transform:
+      scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      scale(1);
+  }
+}
+
+.pf-scale-in {
+  animation:
+    pf-scale-in
+    250ms
+    ease-out
+    both;
+}
+
+
+/* =========================================================
+   SLIDE UP
+   ========================================================= */
+
+@keyframes pf-slide-up {
+  from {
+    opacity: 0;
+
+    transform:
+      translateY(18px);
+  }
+
+  to {
+    opacity: 1;
+
+    transform:
+      translateY(0);
+  }
+}
+
+.pf-slide-up {
+  animation:
+    pf-slide-up
+    450ms
+    ease-out
+    both;
+}
+
+
+/* =========================================================
+   TABLE
+   ========================================================= */
+
+table {
+  width: 100%;
+
+  border-collapse: separate;
+
+  border-spacing: 0;
+}
+
+thead th {
+  background: #0d1717;
+
+  color: rgba(255, 255, 255, 0.45);
+
+  font-size: 12px;
+
+  font-weight: 700;
+
+  letter-spacing: 0.025em;
+
+  text-transform: uppercase;
+
+  border-bottom:
+    1px solid
+    var(--border);
+}
+
+tbody tr {
+  transition:
+    background-color
+    var(--transition-fast);
+}
+
+tbody tr:hover {
+  background:
+    rgba(0, 230, 118, 0.025);
+}
+
+tbody td {
+  color: var(--text-secondary);
+
+  border-bottom:
+    1px solid
+    var(--border-light);
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
 @media (max-width: 768px) {
-  table, thead, tbody, th, td, tr {
+
+  body {
+    font-size: 14px;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font-size: 16px !important;
+  }
+
+  .pf-card,
+  .pf-surface {
+    border-radius: var(--radius-md);
+  }
+
+  .pf-page-background::before,
+  .pf-page-background::after {
+    width: 260px;
+
+    height: 260px;
+
+    filter: blur(70px);
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE TABLE
+   ========================================================= */
+
+@media (max-width: 768px) {
+
+  table,
+  thead,
+  tbody,
+  th,
+  td,
+  tr {
     display: block;
   }
+
   thead tr {
     position: absolute;
+
     top: -9999px;
+
     left: -9999px;
   }
-  tr {
-    border: 1px solid #ccc;
-    margin-bottom: 0.5rem;
+
+  tbody tr {
+    margin-bottom: 12px;
+
+    border:
+      1px solid
+      var(--border);
+
+    border-radius:
+      var(--radius-md);
+
+    background:
+      var(--surface);
+
+    box-shadow:
+      var(--shadow-sm);
+
+    overflow: hidden;
   }
+
+  tbody tr:hover {
+    background:
+      var(--surface);
+  }
+
   td {
-    border: none;
     position: relative;
-    padding-left: 50% !important;
+
+    min-height: 44px;
+
+    padding:
+      12px
+      12px
+      12px
+      50% !important;
+
+    border: none !important;
+
     text-align: left !important;
   }
-  td:before {
+
+  td:not(:last-child) {
+    border-bottom:
+      1px solid
+      var(--border-light) !important;
+  }
+
+  td::before {
     position: absolute;
+
     top: 12px;
+
     left: 12px;
-    width: 45%;
+
+    width: 42%;
+
     padding-right: 10px;
+
+    color:
+      var(--text-muted);
+
+    font-size: 11px;
+
+    font-weight: 700;
+
+    letter-spacing: 0.02em;
+
+    text-transform: uppercase;
+
     white-space: nowrap;
-    font-weight: bold;
-    content: attr(data-label);
+
+    content:
+      attr(data-label);
+  }
+}
+
+
+/* =========================================================
+   ACCESSIBILITY
+   ========================================================= */
+
+:focus-visible {
+  outline:
+    2px solid
+    rgba(0, 230, 118, 0.65);
+
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+   ========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+
+    animation-iteration-count: 1 !important;
+
+    scroll-behavior: auto !important;
+
+    transition-duration: 0.01ms !important;
   }
 }

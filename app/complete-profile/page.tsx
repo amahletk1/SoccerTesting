@@ -1,6 +1,22 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import {
+  User,
+  Shield,
+  Target,
+  Briefcase,
+  ChevronDown,
+  Ruler,
+  Weight,
+  Globe2,
+  Building2,
+  CheckCircle2,
+  ArrowRight,
+  Sparkles,
+  Trophy,
+  AlertCircle,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -33,10 +49,10 @@ const countries = [
   'Solomon Islands', 'Somalia', 'South Africa', 'South Korea', 'South Sudan',
   'Spain', 'Sri Lanka', 'Sudan', 'Suriname', 'Sweden', 'Switzerland', 'Syria',
   'Taiwan', 'Tajikistan', 'Tanzania', 'Thailand', 'Timor-Leste', 'Togo', 'Tonga',
-  'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Tuvalu', 'Uganda',
-  'Ukraine', 'United Arab Emirates', 'United Kingdom', 'United States', 'Uruguay',
-  'Uzbekistan', 'Vanuatu', 'Vatican City', 'Venezuela', 'Vietnam', 'Yemen',
-  'Zambia', 'Zimbabwe'
+  'Trinidad and Tobago', 'Tunisia', 'Turkey', 'Turkmenistan', 'Turkmenistan',
+  'Tuvalu', 'Uganda', 'Ukraine', 'United Arab Emirates', 'United Kingdom',
+  'United States', 'Uruguay', 'Uzbekistan', 'Vanuatu', 'Vatican City',
+  'Venezuela', 'Vietnam', 'Yemen', 'Zambia', 'Zimbabwe'
 ]
 
 // Positions list - same as profile page
@@ -55,18 +71,24 @@ export default function CompleteProfilePage() {
   const [age, setAge] = useState('')
   const [position, setPosition] = useState('')
   const [nationality, setNationality] = useState('')
-  const [heightMeters, setHeightMeters] = useState('') // Now in meters
+  const [heightMeters, setHeightMeters] = useState('')
   const [weight, setWeight] = useState('')
   const [agency, setAgency] = useState('')
   const [clubName, setClubName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+
   const router = useRouter()
   const supabase = createClient()
 
   useEffect(() => {
     const storedRole = localStorage.getItem('selectedRole')
-    if (storedRole === 'player' || storedRole === 'agent' || storedRole === 'scout') {
+
+    if (
+      storedRole === 'player' ||
+      storedRole === 'agent' ||
+      storedRole === 'scout'
+    ) {
       setRole(storedRole)
       localStorage.removeItem('selectedRole')
     }
@@ -77,7 +99,9 @@ export default function CompleteProfilePage() {
     setLoading(true)
     setError('')
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const {
+      data: { user }
+    } = await supabase.auth.getUser()
 
     if (!user) {
       setError('User not found. Please login again.')
@@ -85,10 +109,14 @@ export default function CompleteProfilePage() {
       return
     }
 
-    // ========== PLAYER REGISTRATION ==========
+    // =====================================================
+    // PLAYER REGISTRATION
+    // =====================================================
+
     if (role === 'player') {
-      // Convert meters to cm for database storage
-      const heightCm = heightMeters ? parseFloat(heightMeters) * 100 : null
+      const heightCm = heightMeters
+        ? parseFloat(heightMeters) * 100
+        : null
 
       const { data: existingPlayer } = await supabase
         .from('players')
@@ -97,6 +125,7 @@ export default function CompleteProfilePage() {
         .maybeSingle()
 
       let result
+
       if (existingPlayer) {
         result = await supabase
           .from('players')
@@ -174,7 +203,10 @@ export default function CompleteProfilePage() {
       router.push('/dashboard')
     }
 
-    // ========== AGENT REGISTRATION ==========
+    // =====================================================
+    // AGENT REGISTRATION
+    // =====================================================
+
     else if (role === 'agent') {
       const { data: existingAgent } = await supabase
         .from('agents')
@@ -183,6 +215,7 @@ export default function CompleteProfilePage() {
         .maybeSingle()
 
       let result
+
       if (existingAgent) {
         result = await supabase
           .from('agents')
@@ -251,7 +284,10 @@ export default function CompleteProfilePage() {
       router.push('/dashboard')
     }
 
-    // ========== SCOUT REGISTRATION ==========
+    // =====================================================
+    // SCOUT REGISTRATION
+    // =====================================================
+
     else if (role === 'scout') {
       const { data: existingScout } = await supabase
         .from('scouts')
@@ -260,6 +296,7 @@ export default function CompleteProfilePage() {
         .maybeSingle()
 
       let result
+
       if (existingScout) {
         result = await supabase
           .from('scouts')
@@ -331,175 +368,856 @@ export default function CompleteProfilePage() {
     setLoading(false)
   }
 
+  const roleConfig = {
+    player: {
+      label: 'Player',
+      icon: Trophy,
+      accent: '#00E676',
+      accentSoft: 'rgba(0,230,118,0.10)',
+      description: 'Showcase your football talent',
+    },
+    agent: {
+      label: 'Agent',
+      icon: Briefcase,
+      accent: '#42A5F5',
+      accentSoft: 'rgba(66,165,245,0.10)',
+      description: 'Represent and discover talent',
+    },
+    scout: {
+      label: 'Scout',
+      icon: Target,
+      accent: '#F6B93B',
+      accentSoft: 'rgba(246,185,59,0.10)',
+      description: 'Discover the next generation',
+    },
+  }
+
+  const currentRole = roleConfig[role]
+  const RoleIcon = currentRole.icon
+
+  const inputClass =
+    'w-full rounded-xl border border-white/[0.10] bg-white/[0.035] px-4 py-3.5 text-sm text-white placeholder:text-white/25 transition-all duration-200 focus:border-[#00E676]/50 focus:bg-white/[0.05] focus:ring-2 focus:ring-[#00E676]/10'
+
+  const selectClass =
+    'w-full appearance-none rounded-xl border border-white/[0.10] bg-[#101c1b] px-4 py-3.5 pr-11 text-sm text-white transition-all duration-200 focus:border-[#00E676]/50 focus:ring-2 focus:ring-[#00E676]/10'
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-red-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-8 shadow-xl">
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-600 to-blue-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-white font-bold text-2xl">⚽</span>
-          </div>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-red-600 via-black to-blue-600 bg-clip-text text-transparent">Complete Your Profile</h1>
-          <p className="text-gray-600 text-center mt-2">Tell us about yourself</p>
-        </div>
-        
-        {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded-lg mb-4">
-            {error}
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">I am a:</label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setRole('player')}
-                className={`flex-1 py-2 rounded-lg border-2 transition ${
-                  role === 'player' 
-                    ? 'border-red-600 bg-red-50 text-red-700' 
-                    : 'border-gray-300 text-gray-600 hover:border-red-400'
-                }`}
-              >
-                ⚽ Player
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('agent')}
-                className={`flex-1 py-2 rounded-lg border-2 transition ${
-                  role === 'agent' 
-                    ? 'border-blue-600 bg-blue-50 text-blue-700' 
-                    : 'border-gray-300 text-gray-600 hover:border-blue-400'
-                }`}
-              >
-                🤝 Agent
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('scout')}
-                className={`flex-1 py-2 rounded-lg border-2 transition ${
-                  role === 'scout' 
-                    ? 'border-green-600 bg-green-50 text-green-700' 
-                    : 'border-gray-300 text-gray-600 hover:border-green-400'
-                }`}
-              >
-                🎯 Scout
-              </button>
-            </div>
-          </div>
+    <div className="relative min-h-screen overflow-hidden bg-[#080F0F] text-white">
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Full Name *</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
-              placeholder="Enter your full name"
-              required
-            />
-          </div>
+      {/* =====================================================
+          BACKGROUND
+          ===================================================== */}
 
-          {role === 'player' ? (
-            <>
-              <div>
-                <label className="block text-sm font-medium mb-1">Age *</label>
-                <input
-                  type="number"
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                  placeholder="Your age"
-                  required
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Position *</label>
-                <select
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                  required
-                >
-                  <option value="">Select Position</option>
-                  {positions.map(pos => (
-                    <option key={pos} value={pos}>{pos}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Nationality</label>
-                <select
-                  value={nationality}
-                  onChange={(e) => setNationality(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="">Select Nationality</option>
-                  {countries.map(country => (
-                    <option key={country} value={country}>{country}</option>
-                  ))}
-                </select>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Height (meters)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={heightMeters}
-                    onChange={(e) => setHeightMeters(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    placeholder="e.g., 1.85"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Weight (kg)</label>
-                  <input
-                    type="number"
-                    value={weight}
-                    onChange={(e) => setWeight(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500"
-                    placeholder="e.g., 75"
-                  />
-                </div>
-              </div>
-            </>
-          ) : role === 'agent' ? (
-            <div>
-              <label className="block text-sm font-medium mb-1">Agency Name (Optional)</label>
-              <input
-                type="text"
-                value={agency}
-                onChange={(e) => setAgency(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Your agency name"
-              />
-            </div>
-          ) : (
-            <div>
-              <label className="block text-sm font-medium mb-1">Club/Organization Name (Optional)</label>
-              <input
-                type="text"
-                value={clubName}
-                onChange={(e) => setClubName(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                placeholder="e.g., Manchester United, Independent Scout"
-              />
-            </div>
-          )}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden">
+
+        <div className="absolute -left-48 -top-48 h-[550px] w-[550px] rounded-full bg-[#00E676]/[0.055] blur-[130px]" />
+
+        <div className="absolute -right-48 top-[20%] h-[500px] w-[500px] rounded-full bg-[#F6B93B]/[0.035] blur-[130px]" />
+
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)',
+            backgroundSize: '55px 55px',
+          }}
+        />
+
+      </div>
+
+
+      {/* =====================================================
+          HEADER
+          ===================================================== */}
+
+      <header className="relative z-10 border-b border-white/[0.07] bg-[#080F0F]/85 backdrop-blur-xl">
+
+        <div className="mx-auto flex h-[72px] max-w-6xl items-center justify-between px-4 sm:px-6">
 
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-to-r from-red-600 to-red-700 text-white py-2 rounded-lg hover:from-red-700 hover:to-red-800 transition disabled:opacity-50 mt-6"
+            type="button"
+            onClick={() => router.push('/')}
+            className="group flex items-center gap-3"
           >
-            {loading ? 'Saving...' : 'Complete Profile'}
+
+            <div className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-[#00E676]/20 bg-[#0D1717]">
+
+              <img
+                src="/player-fynder-logo.png"
+                alt="PlayerFynder"
+                className="h-8 w-8 object-contain"
+              />
+
+            </div>
+
+            <div className="text-left">
+
+              <div className="text-base font-black tracking-tight">
+                Player<span className="text-[#00E676]">Fynder</span>
+              </div>
+
+              <div className="hidden text-[8px] font-bold uppercase tracking-[0.18em] text-white/30 sm:block">
+                Football Talent Network
+              </div>
+
+            </div>
+
           </button>
-        </form>
-      </div>
+
+
+          <div className="flex items-center gap-2">
+
+            <span className="hidden text-[10px] font-bold uppercase tracking-[0.15em] text-white/30 sm:block">
+              Profile Setup
+            </span>
+
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[#00E676]/20 bg-[#00E676]/[0.07]">
+
+              <CheckCircle2 className="h-4 w-4 text-[#00E676]" />
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </header>
+
+
+      {/* =====================================================
+          MAIN
+          ===================================================== */}
+
+      <main className="relative z-10 mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14 lg:py-16">
+
+        <div className="grid gap-8 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+
+
+          {/* =================================================
+              LEFT INTRO PANEL
+              ================================================= */}
+
+          <div className="lg:sticky lg:top-8">
+
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#00E676]/20 bg-[#00E676]/[0.05] px-3.5 py-2">
+
+              <Sparkles className="h-3.5 w-3.5 text-[#00E676]" />
+
+              <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-[#00E676]">
+                Almost there
+              </span>
+
+            </div>
+
+
+            <h1 className="text-4xl font-black leading-[0.98] tracking-[-0.04em] sm:text-5xl">
+
+              Complete
+              <br />
+
+              your
+              <br />
+
+              <span className="text-[#00E676]">
+                profile.
+              </span>
+
+            </h1>
+
+
+            <p className="mt-6 max-w-md text-sm leading-6 text-white/40">
+
+              Tell us a little about yourself so PlayerFynder can connect you
+              with the right football opportunities.
+
+            </p>
+
+
+            {/* ROLE PREVIEW */}
+
+            <div className="mt-8 rounded-2xl border border-white/[0.08] bg-[#0D1717] p-5">
+
+              <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-white/30">
+                Your selected role
+              </p>
+
+
+              <div className="mt-4 flex items-center gap-4">
+
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-xl border"
+                  style={{
+                    borderColor: `${currentRole.accent}40`,
+                    backgroundColor: currentRole.accentSoft,
+                  }}
+                >
+
+                  <RoleIcon
+                    className="h-5 w-5"
+                    style={{ color: currentRole.accent }}
+                  />
+
+                </div>
+
+
+                <div>
+
+                  <p className="font-bold text-white">
+                    {currentRole.label}
+                  </p>
+
+                  <p className="mt-1 text-xs text-white/35">
+                    {currentRole.description}
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            {/* STEPS */}
+
+            <div className="mt-7 hidden space-y-4 lg:block">
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-[#00E676] text-[10px] font-black text-[#06100B]">
+                  1
+                </div>
+
+                <span className="text-xs font-semibold text-white/60">
+                  Create your profile
+                </span>
+
+              </div>
+
+
+              <div className="ml-3.5 h-5 w-px bg-white/10" />
+
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[10px] font-black text-white/40">
+                  2
+                </div>
+
+                <span className="text-xs font-semibold text-white/35">
+                  Get discovered
+                </span>
+
+              </div>
+
+
+              <div className="ml-3.5 h-5 w-px bg-white/10" />
+
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-7 w-7 items-center justify-center rounded-full border border-white/15 text-[10px] font-black text-white/40">
+                  3
+                </div>
+
+                <span className="text-xs font-semibold text-white/35">
+                  Connect & grow
+                </span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+
+          {/* =================================================
+              FORM
+              ================================================= */}
+
+          <div className="rounded-[28px] border border-white/[0.08] bg-[#0D1717] p-5 shadow-[0_25px_80px_rgba(0,0,0,.35)] sm:p-7 lg:p-8">
+
+            {/* FORM HEADER */}
+
+            <div className="mb-7 border-b border-white/[0.07] pb-6">
+
+              <div className="flex items-center gap-3">
+
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#00E676]/[0.08]">
+
+                  <User className="h-5 w-5 text-[#00E676]" />
+
+                </div>
+
+                <div>
+
+                  <h2 className="text-xl font-black">
+                    Your information
+                  </h2>
+
+                  <p className="mt-1 text-xs text-white/35">
+                    Complete the details below to continue.
+                  </p>
+
+                </div>
+
+              </div>
+
+            </div>
+
+
+            {/* ERROR */}
+
+            {error && (
+
+              <div className="mb-6 flex items-start gap-3 rounded-xl border border-[#FF5252]/20 bg-[#FF5252]/[0.07] p-4">
+
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-[#FF7373]" />
+
+                <div>
+
+                  <p className="text-sm font-bold text-[#FF9A9A]">
+                    Something went wrong
+                  </p>
+
+                  <p className="mt-1 text-xs leading-5 text-[#FF9A9A]/70">
+                    {error}
+                  </p>
+
+                </div>
+
+              </div>
+
+            )}
+
+
+            <form
+              onSubmit={handleSubmit}
+              className="space-y-6"
+            >
+
+
+              {/* =================================================
+                  ROLE
+                  ================================================= */}
+
+              <div>
+
+                <label className="mb-3 block text-xs font-bold uppercase tracking-[0.12em] text-white/45">
+                  I am a
+                </label>
+
+
+                <div className="grid grid-cols-3 gap-2">
+
+
+                  {/* PLAYER */}
+
+                  <button
+                    type="button"
+                    onClick={() => setRole('player')}
+                    className="rounded-xl border px-3 py-3.5 transition-all"
+                    style={{
+                      borderColor:
+                        role === 'player'
+                          ? 'rgba(0,230,118,.45)'
+                          : 'rgba(255,255,255,.08)',
+                      background:
+                        role === 'player'
+                          ? 'rgba(0,230,118,.08)'
+                          : 'rgba(255,255,255,.025)',
+                    }}
+                  >
+
+                    <Trophy
+                      className="mx-auto h-5 w-5"
+                      style={{
+                        color:
+                          role === 'player'
+                            ? '#00E676'
+                            : 'rgba(255,255,255,.35)',
+                      }}
+                    />
+
+                    <span
+                      className="mt-2 block text-xs font-bold"
+                      style={{
+                        color:
+                          role === 'player'
+                            ? '#00E676'
+                            : 'rgba(255,255,255,.55)',
+                      }}
+                    >
+                      Player
+                    </span>
+
+                  </button>
+
+
+                  {/* AGENT */}
+
+                  <button
+                    type="button"
+                    onClick={() => setRole('agent')}
+                    className="rounded-xl border px-3 py-3.5 transition-all"
+                    style={{
+                      borderColor:
+                        role === 'agent'
+                          ? 'rgba(66,165,245,.45)'
+                          : 'rgba(255,255,255,.08)',
+                      background:
+                        role === 'agent'
+                          ? 'rgba(66,165,245,.08)'
+                          : 'rgba(255,255,255,.025)',
+                    }}
+                  >
+
+                    <Briefcase
+                      className="mx-auto h-5 w-5"
+                      style={{
+                        color:
+                          role === 'agent'
+                            ? '#42A5F5'
+                            : 'rgba(255,255,255,.35)',
+                      }}
+                    />
+
+                    <span
+                      className="mt-2 block text-xs font-bold"
+                      style={{
+                        color:
+                          role === 'agent'
+                            ? '#42A5F5'
+                            : 'rgba(255,255,255,.55)',
+                      }}
+                    >
+                      Agent
+                    </span>
+
+                  </button>
+
+
+                  {/* SCOUT */}
+
+                  <button
+                    type="button"
+                    onClick={() => setRole('scout')}
+                    className="rounded-xl border px-3 py-3.5 transition-all"
+                    style={{
+                      borderColor:
+                        role === 'scout'
+                          ? 'rgba(246,185,59,.45)'
+                          : 'rgba(255,255,255,.08)',
+                      background:
+                        role === 'scout'
+                          ? 'rgba(246,185,59,.08)'
+                          : 'rgba(255,255,255,.025)',
+                    }}
+                  >
+
+                    <Target
+                      className="mx-auto h-5 w-5"
+                      style={{
+                        color:
+                          role === 'scout'
+                            ? '#F6B93B'
+                            : 'rgba(255,255,255,.35)',
+                      }}
+                    />
+
+                    <span
+                      className="mt-2 block text-xs font-bold"
+                      style={{
+                        color:
+                          role === 'scout'
+                            ? '#F6B93B'
+                            : 'rgba(255,255,255,.55)',
+                      }}
+                    >
+                      Scout
+                    </span>
+
+                  </button>
+
+                </div>
+
+              </div>
+
+
+              {/* =================================================
+                  NAME
+                  ================================================= */}
+
+              <div>
+
+                <label
+                  htmlFor="name"
+                  className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                >
+                  Full Name <span className="text-[#00E676]">*</span>
+                </label>
+
+                <div className="relative">
+
+                  <User className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+
+                  <input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={`${inputClass} pl-11`}
+                    placeholder="Enter your full name"
+                    required
+                  />
+
+                </div>
+
+              </div>
+
+
+              {/* =================================================
+                  PLAYER FIELDS
+                  ================================================= */}
+
+              {role === 'player' ? (
+
+                <div className="space-y-6">
+
+
+                  {/* AGE + POSITION */}
+
+                  <div className="grid gap-5 sm:grid-cols-2">
+
+
+                    <div>
+
+                      <label
+                        htmlFor="age"
+                        className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                      >
+                        Age <span className="text-[#00E676]">*</span>
+                      </label>
+
+                      <input
+                        id="age"
+                        type="number"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        className={inputClass}
+                        placeholder="Your age"
+                        required
+                      />
+
+                    </div>
+
+
+                    <div>
+
+                      <label
+                        htmlFor="position"
+                        className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                      >
+                        Position <span className="text-[#00E676]">*</span>
+                      </label>
+
+                      <div className="relative">
+
+                        <select
+                          id="position"
+                          value={position}
+                          onChange={(e) => setPosition(e.target.value)}
+                          className={selectClass}
+                          required
+                        >
+                          <option value="">
+                            Select Position
+                          </option>
+
+                          {positions.map((pos) => (
+                            <option
+                              key={pos}
+                              value={pos}
+                            >
+                              {pos}
+                            </option>
+                          ))}
+                        </select>
+
+                        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+
+                  {/* NATIONALITY */}
+
+                  <div>
+
+                    <label
+                      htmlFor="nationality"
+                      className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                    >
+                      Nationality
+                    </label>
+
+                    <div className="relative">
+
+                      <Globe2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+
+                      <select
+                        id="nationality"
+                        value={nationality}
+                        onChange={(e) => setNationality(e.target.value)}
+                        className={`${selectClass} pl-11`}
+                      >
+
+                        <option value="">
+                          Select Nationality
+                        </option>
+
+                        {countries.map((country) => (
+                          <option
+                            key={country}
+                            value={country}
+                          >
+                            {country}
+                          </option>
+                        ))}
+
+                      </select>
+
+                      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+
+                    </div>
+
+                  </div>
+
+
+                  {/* HEIGHT + WEIGHT */}
+
+                  <div className="grid gap-5 sm:grid-cols-2">
+
+                    <div>
+
+                      <label
+                        htmlFor="height"
+                        className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                      >
+                        Height
+                      </label>
+
+                      <div className="relative">
+
+                        <Ruler className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+
+                        <input
+                          id="height"
+                          type="number"
+                          step="0.01"
+                          value={heightMeters}
+                          onChange={(e) => setHeightMeters(e.target.value)}
+                          className={`${inputClass} pl-11 pr-16`}
+                          placeholder="1.85"
+                        />
+
+                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-white/25">
+                          metres
+                        </span>
+
+                      </div>
+
+                    </div>
+
+
+                    <div>
+
+                      <label
+                        htmlFor="weight"
+                        className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                      >
+                        Weight
+                      </label>
+
+                      <div className="relative">
+
+                        <Weight className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+
+                        <input
+                          id="weight"
+                          type="number"
+                          value={weight}
+                          onChange={(e) => setWeight(e.target.value)}
+                          className={`${inputClass} pl-11 pr-12`}
+                          placeholder="75"
+                        />
+
+                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-bold text-white/25">
+                          kg
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              ) : role === 'agent' ? (
+
+                /* =================================================
+                   AGENT
+                   ================================================= */
+
+                <div>
+
+                  <label
+                    htmlFor="agency"
+                    className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                  >
+                    Agency Name
+                    <span className="ml-2 normal-case tracking-normal text-white/20">
+                      Optional
+                    </span>
+                  </label>
+
+                  <div className="relative">
+
+                    <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+
+                    <input
+                      id="agency"
+                      type="text"
+                      value={agency}
+                      onChange={(e) => setAgency(e.target.value)}
+                      className={`${inputClass} pl-11`}
+                      placeholder="Your agency name"
+                    />
+
+                  </div>
+
+                </div>
+
+              ) : (
+
+                /* =================================================
+                   SCOUT
+                   ================================================= */
+
+                <div>
+
+                  <label
+                    htmlFor="club"
+                    className="mb-2 block text-xs font-bold uppercase tracking-[0.1em] text-white/45"
+                  >
+                    Club / Organization Name
+                    <span className="ml-2 normal-case tracking-normal text-white/20">
+                      Optional
+                    </span>
+                  </label>
+
+                  <div className="relative">
+
+                    <Building2 className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-white/25" />
+
+                    <input
+                      id="club"
+                      type="text"
+                      value={clubName}
+                      onChange={(e) => setClubName(e.target.value)}
+                      className={`${inputClass} pl-11`}
+                      placeholder="e.g. Manchester United, Independent Scout"
+                    />
+
+                  </div>
+
+                </div>
+
+              )}
+
+
+              {/* =================================================
+                  SUBMIT
+                  ================================================= */}
+
+              <div className="border-t border-white/[0.07] pt-6">
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="group flex w-full items-center justify-center gap-3 rounded-xl bg-[#00E676] px-6 py-4 text-sm font-black text-[#06100B] shadow-[0_12px_35px_rgba(0,230,118,.14)] transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#16F486] hover:shadow-[0_18px_45px_rgba(0,230,118,.24)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+
+                  {loading ? (
+
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#06100B]/30 border-t-[#06100B]" />
+
+                      Saving...
+
+                    </>
+
+                  ) : (
+
+                    <>
+                      Complete Profile
+
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+
+                    </>
+
+                  )}
+
+                </button>
+
+
+                <p className="mt-4 text-center text-[10px] leading-5 text-white/25">
+
+                  By completing your profile, your information will be saved
+                  securely to your PlayerFynder account.
+
+                </p>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+
+      </main>
+
+
+      {/* =====================================================
+          FOOTER
+          ===================================================== */}
+
+      <footer className="relative z-10 border-t border-white/[0.06] bg-[#050B0B]">
+
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-6 text-center sm:flex-row sm:px-6 sm:text-left">
+
+          <p className="text-[10px] text-white/25">
+            © 2024 PlayerFynder. Football talent, connected.
+          </p>
+
+          <div className="flex items-center gap-2">
+
+            <span className="h-1.5 w-1.5 rounded-full bg-[#00E676]" />
+
+            <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-white/25">
+              Africa to the world
+            </span>
+
+          </div>
+
+        </div>
+
+      </footer>
+
     </div>
   )
 }
